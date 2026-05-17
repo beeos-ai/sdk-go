@@ -1,0 +1,1241 @@
+openapi: 3.1.0
+info:
+  description: |
+    The **BeeOS OpenAPI** user contract. The sole implementer is
+    **[`services/openapi-gateway`](../services/openapi-gateway)** (`openapi-gw`,
+    local `:8095`). SDKs (Go / TypeScript) published under
+    [`sdks/beeos-ai-sdk-go`](../../sdks/beeos-ai-sdk-go) and
+    [`sdks/beeos-ai-sdk`](../../sdks/beeos-ai-sdk) are generated directly from
+    this document.
+
+    The main user Gateway (`services/gateway`, `:9080`) serves web / mobile /
+    desktop clients and is **not** described by this document. It maintains its
+    own route set independent of the SDK contract.
+
+    **Auth:** every operation requires either a user **JWT** or a **`oag_`**
+    User API Key, both on `Authorization: Bearer`. Agent-level protocol
+    endpoints (A2A JSON-RPC with `bak_`, MCP) live in
+    [beeos-agent-integration-v1.yaml](beeos-agent-integration-v1.yaml) and are
+    hosted by A2A Gateway / MCP Gateway — not by `openapi-gateway`.
+  title: BeeOS OpenAPI (user contract)
+  version: 1.0.0
+servers:
+- description: Production
+  url: https://openapi.beeos.ai
+- description: Staging
+  url: https://openapi-staging.beeos.ai
+- description: Local dev (goreman)
+  url: http://localhost:8095
+security:
+- bearerAuth: []
+tags:
+- description: Provider / region / model catalog.
+  name: deploy
+- description: "Agent instance lifecycle (deploy, start, stop, restart, destroy)."
+  name: instances
+- description: "Agent listing, details, and invocation."
+  name: agents
+paths:
+  /api/v1/providers:
+    get:
+      operationId: listProviders
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProvidersListResponse"
+          description: "Standard `{ success, data }` envelope; `data` is a list of\
+            \ provider catalog items."
+      summary: List available providers (catalog)
+      tags:
+      - deploy
+  /api/v1/deploy/regions:
+    get:
+      operationId: listDeployRegions
+      parameters:
+      - explode: true
+        in: query
+        name: providerId
+        required: false
+        schema:
+          type: string
+        style: form
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeployRegionsListResponse"
+          description: Standard envelope; `data` is a list of deploy regions.
+      summary: List deploy regions
+      tags:
+      - deploy
+  /api/v1/deploy/models:
+    get:
+      operationId: listDeployModels
+      parameters:
+      - explode: true
+        in: query
+        name: agentFramework
+        required: false
+        schema:
+          type: string
+        style: form
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeployModelsListResponse"
+          description: Standard envelope; `data` is a list of deploy model options.
+      summary: List deploy models
+      tags:
+      - deploy
+  /api/v1/instances:
+    get:
+      operationId: listInstances
+      parameters:
+      - explode: true
+        in: query
+        name: page
+        required: false
+        schema:
+          format: int32
+          minimum: 0
+          type: integer
+        style: form
+      - explode: true
+        in: query
+        name: pageSize
+        required: false
+        schema:
+          format: int32
+          maximum: 200
+          minimum: 0
+          type: integer
+        style: form
+      - explode: true
+        in: query
+        name: status
+        required: false
+        schema:
+          type: string
+        style: form
+      - explode: true
+        in: query
+        name: providerId
+        required: false
+        schema:
+          type: string
+        style: form
+      - explode: true
+        in: query
+        name: agentFramework
+        required: false
+        schema:
+          type: string
+        style: form
+      - explode: true
+        in: query
+        name: clusterId
+        required: false
+        schema:
+          type: string
+        style: form
+      - explode: true
+        in: query
+        name: search
+        required: false
+        schema:
+          type: string
+        style: form
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InstancePageResponse"
+          description: "Paginated list of instances (`{ success, data, total }`)."
+      summary: List the caller's instances
+      tags:
+      - instances
+    post:
+      operationId: deployInstance
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeployInstanceRequest"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InstanceResponse"
+          description: Standard envelope; `data` is the created instance.
+      summary: Deploy a new instance (catalog-driven via `variantId` or explicit).
+      tags:
+      - instances
+  /api/v1/instances/{id}:
+    delete:
+      operationId: destroyInstance
+      parameters:
+      - explode: false
+        in: path
+        name: id
+        required: true
+        schema:
+          maxLength: 128
+          type: string
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StringResponse"
+          description: Standard envelope; `data` is the literal `"destroyed"`.
+      summary: Destroy (terminate) an instance
+      tags:
+      - instances
+    get:
+      operationId: getInstance
+      parameters:
+      - explode: false
+        in: path
+        name: id
+        required: true
+        schema:
+          maxLength: 128
+          type: string
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InstanceResponse"
+          description: Standard envelope; `data` is the instance.
+      summary: Get an instance by id
+      tags:
+      - instances
+    parameters:
+    - explode: false
+      in: path
+      name: id
+      required: true
+      schema:
+        maxLength: 128
+        type: string
+      style: simple
+  /api/v1/instances/{id}/start:
+    parameters:
+    - explode: false
+      in: path
+      name: id
+      required: true
+      schema:
+        maxLength: 128
+        type: string
+      style: simple
+    post:
+      operationId: startInstance
+      parameters:
+      - explode: false
+        in: path
+        name: id
+        required: true
+        schema:
+          maxLength: 128
+          type: string
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InstanceResponse"
+          description: Standard envelope; `data` is the instance after the operation.
+      summary: Start an instance
+      tags:
+      - instances
+  /api/v1/instances/{id}/stop:
+    parameters:
+    - explode: false
+      in: path
+      name: id
+      required: true
+      schema:
+        maxLength: 128
+        type: string
+      style: simple
+    post:
+      operationId: stopInstance
+      parameters:
+      - explode: false
+        in: path
+        name: id
+        required: true
+        schema:
+          maxLength: 128
+          type: string
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InstanceResponse"
+          description: Standard envelope; `data` is the instance after the operation.
+      summary: Stop an instance
+      tags:
+      - instances
+  /api/v1/instances/{id}/restart:
+    parameters:
+    - explode: false
+      in: path
+      name: id
+      required: true
+      schema:
+        maxLength: 128
+        type: string
+      style: simple
+    post:
+      operationId: restartInstance
+      parameters:
+      - explode: false
+        in: path
+        name: id
+        required: true
+        schema:
+          maxLength: 128
+          type: string
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InstanceResponse"
+          description: Standard envelope; `data` is the instance after the operation.
+      summary: Restart an instance
+      tags:
+      - instances
+  /api/v1/agents:
+    get:
+      operationId: listAgents
+      parameters:
+      - description: Filter agents by instance ID.
+        explode: true
+        in: query
+        name: instance_id
+        required: false
+        schema:
+          maxLength: 128
+          type: string
+        style: form
+      - explode: true
+        in: query
+        name: limit
+        required: false
+        schema:
+          default: 20
+          format: int32
+          type: integer
+        style: form
+      - explode: true
+        in: query
+        name: offset
+        required: false
+        schema:
+          default: 0
+          format: int32
+          type: integer
+        style: form
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentListResponse"
+          description: Paginated list of agents.
+      summary: List agents owned by the caller.
+      tags:
+      - agents
+  /api/v1/agents/{agentId}:
+    get:
+      operationId: getAgent
+      parameters:
+      - explode: false
+        in: path
+        name: agentId
+        required: true
+        schema:
+          maxLength: 128
+          type: string
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentResponse"
+          description: Agent details.
+      summary: Get agent details by ID.
+      tags:
+      - agents
+    parameters:
+    - explode: false
+      in: path
+      name: agentId
+      required: true
+      schema:
+        maxLength: 128
+        type: string
+      style: simple
+  /api/v1/agents/{agentId}/invoke:
+    parameters:
+    - explode: false
+      in: path
+      name: agentId
+      required: true
+      schema:
+        maxLength: 128
+        type: string
+      style: simple
+    post:
+      description: |
+        Sends a `chat_message` to the specified agent via Message Service
+        channel-primitives and blocks until the agent replies (or times out).
+
+        For streaming responses, set `Accept: text/event-stream` — the
+        response body will be Server-Sent Events with `delta` and `done`
+        event types.
+      operationId: invokeAgent
+      parameters:
+      - explode: false
+        in: path
+        name: agentId
+        required: true
+        schema:
+          maxLength: 128
+          type: string
+        style: simple
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InvokeAgentRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvokeAgentResponse"
+            text/event-stream:
+              schema:
+                description: SSE stream with `delta` and `done` events.
+                type: string
+          description: |
+            Blocking: JSON envelope with agent reply.
+            Streaming (`Accept: text/event-stream`): SSE stream.
+      summary: Send a message to an agent and receive a reply.
+      tags:
+      - agents
+components:
+  schemas:
+    SuccessEnvelope:
+      properties:
+        success:
+          enum:
+          - true
+          type: boolean
+      required:
+      - success
+    StringResponse:
+      allOf:
+      - $ref: "#/components/schemas/SuccessEnvelope"
+      - properties:
+          data:
+            type: string
+        required:
+        - data
+      example:
+        data: data
+        success: true
+    ProviderMeta:
+      example:
+        name: name
+        description: description
+        id: id
+        version: version
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        version:
+          type: string
+      required:
+      - description
+      - id
+      - name
+      - version
+    ProviderCapabilities:
+      example:
+        fileSystem: true
+        codeExec: true
+        costModel: costModel
+        longRunning: true
+        customImage: true
+        maxDurationSec: 0
+        device: true
+        browserUse: true
+      properties:
+        longRunning:
+          type: boolean
+        browserUse:
+          type: boolean
+        codeExec:
+          type: boolean
+        fileSystem:
+          type: boolean
+        customImage:
+          type: boolean
+        maxDurationSec:
+          format: int32
+          type: integer
+        costModel:
+          type: string
+        device:
+          type: boolean
+    ProviderCatalogItem:
+      example:
+        capabilities:
+          fileSystem: true
+          codeExec: true
+          costModel: costModel
+          longRunning: true
+          customImage: true
+          maxDurationSec: 0
+          device: true
+          browserUse: true
+        meta:
+          name: name
+          description: description
+          id: id
+          version: version
+      properties:
+        meta:
+          $ref: "#/components/schemas/ProviderMeta"
+        capabilities:
+          $ref: "#/components/schemas/ProviderCapabilities"
+      required:
+      - capabilities
+      - meta
+    ProvidersListResponse:
+      allOf:
+      - $ref: "#/components/schemas/SuccessEnvelope"
+      - properties:
+          data:
+            items:
+              $ref: "#/components/schemas/ProviderCatalogItem"
+            type: array
+        required:
+        - data
+      example:
+        data:
+        - capabilities:
+            fileSystem: true
+            codeExec: true
+            costModel: costModel
+            longRunning: true
+            customImage: true
+            maxDurationSec: 0
+            device: true
+            browserUse: true
+          meta:
+            name: name
+            description: description
+            id: id
+            version: version
+        - capabilities:
+            fileSystem: true
+            codeExec: true
+            costModel: costModel
+            longRunning: true
+            customImage: true
+            maxDurationSec: 0
+            device: true
+            browserUse: true
+          meta:
+            name: name
+            description: description
+            id: id
+            version: version
+        success: true
+    DeployRegionItem:
+      example:
+        name: name
+        available: true
+        id: id
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        available:
+          type: boolean
+      required:
+      - available
+      - id
+      - name
+    DeployRegionsListResponse:
+      allOf:
+      - $ref: "#/components/schemas/SuccessEnvelope"
+      - properties:
+          data:
+            items:
+              $ref: "#/components/schemas/DeployRegionItem"
+            type: array
+        required:
+        - data
+      example:
+        data:
+        - name: name
+          available: true
+          id: id
+        - name: name
+          available: true
+          id: id
+        success: true
+    DeployModelItem:
+      example:
+        tier: tier
+        reasoning: true
+        name: name
+        id: id
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        tier:
+          type: string
+        reasoning:
+          type: boolean
+      required:
+      - id
+      - name
+      - reasoning
+      - tier
+    DeployModelsListResponse:
+      allOf:
+      - $ref: "#/components/schemas/SuccessEnvelope"
+      - properties:
+          data:
+            items:
+              $ref: "#/components/schemas/DeployModelItem"
+            type: array
+        required:
+        - data
+      example:
+        data:
+        - tier: tier
+          reasoning: true
+          name: name
+          id: id
+        - tier: tier
+          reasoning: true
+          name: name
+          id: id
+        success: true
+    InstanceDataDTO:
+      example:
+        startedAt: 2000-01-23T04:56:07.000+00:00
+        clusterId: clusterId
+        ownerId: ownerId
+        isTrial: true
+        createdAt: 2000-01-23T04:56:07.000+00:00
+        endpoint: endpoint
+        bridgeId: bridgeId
+        connectivity: connectivity
+        providerId: providerId
+        cloudProvider: cloudProvider
+        osType: osType
+        agentFramework: agentFramework
+        id: id
+        updatedAt: 2000-01-23T04:56:07.000+00:00
+        models:
+        - models
+        - models
+        imageId: imageId
+        haltReason: haltReason
+        modelPrimary: modelPrimary
+        errorMessage: errorMessage
+        externalId: externalId
+        hostingType: hostingType
+        publicIp: publicIp
+        mcpServers:
+          key: ""
+        totalRunSeconds: 0
+        expiresAt: 2000-01-23T04:56:07.000+00:00
+        systemPrompt: systemPrompt
+        connectivityUpdatedAt: 2000-01-23T04:56:07.000+00:00
+        screenshotUrl: screenshotUrl
+        stoppedAt: 2000-01-23T04:56:07.000+00:00
+        connectivityReason: device_disconnected
+        statusEnteredAt: 2000-01-23T04:56:07.000+00:00
+        identityId: identityId
+        screenshotUpdatedAt: 2000-01-23T04:56:07.000+00:00
+        name: name
+        imageRef: imageRef
+        region: region
+        providerConfig:
+          key: ""
+        desiredStatus: desiredStatus
+        status: status
+      properties:
+        id:
+          type: string
+        ownerId:
+          type: string
+        agentFramework:
+          type: string
+        providerId:
+          type: string
+        externalId:
+          type: string
+        osType:
+          type: string
+        hostingType:
+          type: string
+        cloudProvider:
+          type: string
+        name:
+          type: string
+        modelPrimary:
+          type: string
+        models:
+          items:
+            type: string
+          type: array
+        status:
+          description: |
+            One of `pending` | `provisioning` | `running` | `stopped` |
+            `terminated`.
+          type: string
+        desiredStatus:
+          description: |
+            One of `running` | `stopped` | `terminated`.
+          type: string
+        endpoint:
+          type: string
+        bridgeId:
+          type: string
+        identityId:
+          type: string
+        totalRunSeconds:
+          format: int64
+          type: integer
+        connectivity:
+          description: One of `unknown` | `online` | `offline`.
+          type: string
+        connectivityReason:
+          description: |
+            Open-string reason annotating a non-online `connectivity`
+            value (independent of `haltReason`). Canonical values:
+            `device_disconnected` | `device_unauthorized` |
+            `instance_disconnected` (legacy alias `agent_disconnected`
+            still accepted during Phase 1 rollout). Empty when
+            connectivity is online. Lifecycle is tied to connectivity:
+            any transition into `online` strictly clears this field.
+          example: device_disconnected
+          type: string
+        haltReason:
+          type: string
+        providerConfig:
+          additionalProperties: true
+          description: |
+            Sanitized provider config (apiKeys stripped). Raw JSON object.
+          type: object
+        publicIp:
+          type: string
+        clusterId:
+          type: string
+        region:
+          type: string
+        imageId:
+          type: string
+        imageRef:
+          type: string
+        isTrial:
+          type: boolean
+        expiresAt:
+          format: date-time
+          type: string
+        errorMessage:
+          type: string
+        systemPrompt:
+          type: string
+        mcpServers:
+          additionalProperties: true
+          type: object
+        startedAt:
+          format: date-time
+          type: string
+        stoppedAt:
+          format: date-time
+          type: string
+        statusEnteredAt:
+          format: date-time
+          type: string
+        connectivityUpdatedAt:
+          format: date-time
+          type: string
+        createdAt:
+          format: date-time
+          type: string
+        updatedAt:
+          format: date-time
+          type: string
+        screenshotUrl:
+          type: string
+        screenshotUpdatedAt:
+          format: date-time
+          type: string
+      required:
+      - agentFramework
+      - bridgeId
+      - cloudProvider
+      - connectivity
+      - desiredStatus
+      - endpoint
+      - externalId
+      - hostingType
+      - id
+      - identityId
+      - modelPrimary
+      - models
+      - name
+      - osType
+      - ownerId
+      - providerConfig
+      - providerId
+      - status
+      - totalRunSeconds
+    InstanceResponse:
+      allOf:
+      - $ref: "#/components/schemas/SuccessEnvelope"
+      - properties:
+          data:
+            $ref: "#/components/schemas/InstanceDataDTO"
+        required:
+        - data
+      example:
+        data:
+          startedAt: 2000-01-23T04:56:07.000+00:00
+          clusterId: clusterId
+          ownerId: ownerId
+          isTrial: true
+          createdAt: 2000-01-23T04:56:07.000+00:00
+          endpoint: endpoint
+          bridgeId: bridgeId
+          connectivity: connectivity
+          providerId: providerId
+          cloudProvider: cloudProvider
+          osType: osType
+          agentFramework: agentFramework
+          id: id
+          updatedAt: 2000-01-23T04:56:07.000+00:00
+          models:
+          - models
+          - models
+          imageId: imageId
+          haltReason: haltReason
+          modelPrimary: modelPrimary
+          errorMessage: errorMessage
+          externalId: externalId
+          hostingType: hostingType
+          publicIp: publicIp
+          mcpServers:
+            key: ""
+          totalRunSeconds: 0
+          expiresAt: 2000-01-23T04:56:07.000+00:00
+          systemPrompt: systemPrompt
+          connectivityUpdatedAt: 2000-01-23T04:56:07.000+00:00
+          screenshotUrl: screenshotUrl
+          stoppedAt: 2000-01-23T04:56:07.000+00:00
+          connectivityReason: device_disconnected
+          statusEnteredAt: 2000-01-23T04:56:07.000+00:00
+          identityId: identityId
+          screenshotUpdatedAt: 2000-01-23T04:56:07.000+00:00
+          name: name
+          imageRef: imageRef
+          region: region
+          providerConfig:
+            key: ""
+          desiredStatus: desiredStatus
+          status: status
+        success: true
+    InstancePageResponse:
+      allOf:
+      - $ref: "#/components/schemas/SuccessEnvelope"
+      - properties:
+          data:
+            items:
+              $ref: "#/components/schemas/InstanceDataDTO"
+            type: array
+          total:
+            format: int64
+            type: integer
+        required:
+        - data
+      example:
+        total: 6
+        data:
+        - startedAt: 2000-01-23T04:56:07.000+00:00
+          clusterId: clusterId
+          ownerId: ownerId
+          isTrial: true
+          createdAt: 2000-01-23T04:56:07.000+00:00
+          endpoint: endpoint
+          bridgeId: bridgeId
+          connectivity: connectivity
+          providerId: providerId
+          cloudProvider: cloudProvider
+          osType: osType
+          agentFramework: agentFramework
+          id: id
+          updatedAt: 2000-01-23T04:56:07.000+00:00
+          models:
+          - models
+          - models
+          imageId: imageId
+          haltReason: haltReason
+          modelPrimary: modelPrimary
+          errorMessage: errorMessage
+          externalId: externalId
+          hostingType: hostingType
+          publicIp: publicIp
+          mcpServers:
+            key: ""
+          totalRunSeconds: 0
+          expiresAt: 2000-01-23T04:56:07.000+00:00
+          systemPrompt: systemPrompt
+          connectivityUpdatedAt: 2000-01-23T04:56:07.000+00:00
+          screenshotUrl: screenshotUrl
+          stoppedAt: 2000-01-23T04:56:07.000+00:00
+          connectivityReason: device_disconnected
+          statusEnteredAt: 2000-01-23T04:56:07.000+00:00
+          identityId: identityId
+          screenshotUpdatedAt: 2000-01-23T04:56:07.000+00:00
+          name: name
+          imageRef: imageRef
+          region: region
+          providerConfig:
+            key: ""
+          desiredStatus: desiredStatus
+          status: status
+        - startedAt: 2000-01-23T04:56:07.000+00:00
+          clusterId: clusterId
+          ownerId: ownerId
+          isTrial: true
+          createdAt: 2000-01-23T04:56:07.000+00:00
+          endpoint: endpoint
+          bridgeId: bridgeId
+          connectivity: connectivity
+          providerId: providerId
+          cloudProvider: cloudProvider
+          osType: osType
+          agentFramework: agentFramework
+          id: id
+          updatedAt: 2000-01-23T04:56:07.000+00:00
+          models:
+          - models
+          - models
+          imageId: imageId
+          haltReason: haltReason
+          modelPrimary: modelPrimary
+          errorMessage: errorMessage
+          externalId: externalId
+          hostingType: hostingType
+          publicIp: publicIp
+          mcpServers:
+            key: ""
+          totalRunSeconds: 0
+          expiresAt: 2000-01-23T04:56:07.000+00:00
+          systemPrompt: systemPrompt
+          connectivityUpdatedAt: 2000-01-23T04:56:07.000+00:00
+          screenshotUrl: screenshotUrl
+          stoppedAt: 2000-01-23T04:56:07.000+00:00
+          connectivityReason: device_disconnected
+          statusEnteredAt: 2000-01-23T04:56:07.000+00:00
+          identityId: identityId
+          screenshotUpdatedAt: 2000-01-23T04:56:07.000+00:00
+          name: name
+          imageRef: imageRef
+          region: region
+          providerConfig:
+            key: ""
+          desiredStatus: desiredStatus
+          status: status
+        success: true
+    DeployInstanceRequest:
+      description: |
+        Either supply a **catalog** `variantId` (authoritative — lifts
+        `agentFramework` / `providerId` / region / scheduling hints from the
+        variant) **or** provide an explicit `agentFramework` (+ optional
+        `providerId`). Client-supplied scheduling fields (ownershipPreference /
+        maxPricePerHour / resourceTypeHint) are **not** accepted here; the
+        catalog variant is the source of truth.
+      example:
+        models:
+        - models
+        - models
+        preferredRegion: preferredRegion
+        modelPrimary: modelPrimary
+        mcpServers:
+          key: ""
+        clusterId: clusterId
+        systemPrompt: systemPrompt
+        bridgeId: bridgeId
+        providerId: providerId
+        name: name
+        agentFramework: agentFramework
+        variantId: variantId
+        providerConfig:
+          key: ""
+        config:
+          key: ""
+      properties:
+        variantId:
+          maxLength: 128
+          type: string
+        agentFramework:
+          maxLength: 64
+          type: string
+        providerId:
+          maxLength: 64
+          type: string
+        providerConfig:
+          additionalProperties: true
+          description: |
+            Free-form provider-specific configuration merged with the catalog
+            config (catalog wins on key conflicts).
+          type: object
+        name:
+          maxLength: 128
+          type: string
+        modelPrimary:
+          maxLength: 128
+          type: string
+        models:
+          items:
+            maxLength: 128
+            type: string
+          type: array
+        systemPrompt:
+          maxLength: 8192
+          type: string
+        mcpServers:
+          additionalProperties: true
+          type: object
+        bridgeId:
+          maxLength: 128
+          type: string
+        config:
+          additionalProperties: true
+          description: |
+            Alternate name for `providerConfig`; same semantics. Used by the
+            variant-driven path to layer user extras (apiKeys / apiBaseUrls)
+            on top of the catalog config.
+          type: object
+        clusterId:
+          maxLength: 128
+          type: string
+        preferredRegion:
+          maxLength: 64
+          type: string
+      required:
+      - name
+    AgentDTO:
+      example:
+        mcpEnabled: true
+        createdAt: 2000-01-23T04:56:07.000+00:00
+        instanceId: instanceId
+        visibility: private
+        displayName: displayName
+        name: name
+        description: description
+        id: id
+        slug: slug
+        status: status
+        updatedAt: 2000-01-23T04:56:07.000+00:00
+      properties:
+        id:
+          type: string
+        instanceId:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        displayName:
+          type: string
+        status:
+          type: string
+        slug:
+          type: string
+        mcpEnabled:
+          type: boolean
+        visibility:
+          enum:
+          - private
+          - public
+          - marketplace
+          - unlisted
+          type: string
+        createdAt:
+          format: date-time
+          type: string
+        updatedAt:
+          format: date-time
+          type: string
+      required:
+      - id
+      - instanceId
+      - mcpEnabled
+      - name
+      - status
+      - visibility
+    AgentListResponse:
+      example:
+        total: 0
+        data:
+        - mcpEnabled: true
+          createdAt: 2000-01-23T04:56:07.000+00:00
+          instanceId: instanceId
+          visibility: private
+          displayName: displayName
+          name: name
+          description: description
+          id: id
+          slug: slug
+          status: status
+          updatedAt: 2000-01-23T04:56:07.000+00:00
+        - mcpEnabled: true
+          createdAt: 2000-01-23T04:56:07.000+00:00
+          instanceId: instanceId
+          visibility: private
+          displayName: displayName
+          name: name
+          description: description
+          id: id
+          slug: slug
+          status: status
+          updatedAt: 2000-01-23T04:56:07.000+00:00
+        success: true
+      properties:
+        success:
+          enum:
+          - true
+          type: boolean
+        data:
+          items:
+            $ref: "#/components/schemas/AgentDTO"
+          type: array
+        total:
+          format: int64
+          type: integer
+      required:
+      - data
+      - success
+      - total
+    AgentResponse:
+      allOf:
+      - $ref: "#/components/schemas/SuccessEnvelope"
+      - properties:
+          data:
+            $ref: "#/components/schemas/AgentDTO"
+        required:
+        - data
+      example:
+        data:
+          mcpEnabled: true
+          createdAt: 2000-01-23T04:56:07.000+00:00
+          instanceId: instanceId
+          visibility: private
+          displayName: displayName
+          name: name
+          description: description
+          id: id
+          slug: slug
+          status: status
+          updatedAt: 2000-01-23T04:56:07.000+00:00
+        success: true
+    InvokeAgentRequest:
+      example:
+        context_id: context_id
+        timeout_ms: 0
+        message: message
+      properties:
+        message:
+          description: The message to send to the agent.
+          type: string
+        context_id:
+          description: Optional conversation context ID for multi-turn conversations.
+          type: string
+        timeout_ms:
+          description: Timeout in milliseconds (default 120000).
+          format: int64
+          type: integer
+      required:
+      - message
+    InvokeAgentResponse:
+      allOf:
+      - $ref: "#/components/schemas/SuccessEnvelope"
+      - properties:
+          data:
+            $ref: "#/components/schemas/InvokeAgentResponse_allOf_data"
+        required:
+        - data
+      example:
+        data:
+          context_id: context_id
+          is_error: true
+          text: text
+        success: true
+    InvokeAgentResponse_allOf_data:
+      example:
+        context_id: context_id
+        is_error: true
+        text: text
+      properties:
+        text:
+          description: Agent reply text.
+          type: string
+        context_id:
+          description: Conversation context ID (channel ID).
+          type: string
+        is_error:
+          description: Whether the agent's reply indicated an error.
+          type: boolean
+      required:
+      - context_id
+      - is_error
+      - text
+  securitySchemes:
+    bearerAuth:
+      bearerFormat: JWT
+      description: |
+        Pass a user **JWT** or a **`oag_`** User API Key on the
+        `Authorization: Bearer <token>` header. Both are validated by
+        `openapi-gateway` against the Auth service.
+      scheme: bearer
+      type: http
