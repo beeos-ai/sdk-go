@@ -20,6 +20,19 @@ go get github.com/beeos-ai/sdk-go@latest
   `Authorization: Bearer oag_<user-api-key>` via the `http.Client.Transport`
   wrapper you inject into the generated API client.
 
+For the stable, task-focused facade:
+
+```go
+client, err := beeos.NewClient(beeos.ClientOptions{
+    APIKey: os.Getenv("BEEOS_API_KEY"),
+})
+if err != nil { log.Fatal(err) }
+
+agents, err := client.ListAgents(context.Background())
+```
+
+`client.API` exposes the complete generated Platform OpenAPI surface.
+
 ## Regenerate (maintainers)
 
 From the monorepo: `cd sdks/openapi-sdk && ./generate.sh`
