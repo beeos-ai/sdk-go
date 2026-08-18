@@ -1,0 +1,7 @@
+/.idea/
+/DEBUG
+__debug_bin
+go.work
+go.work.sum
+.DS_Store
+*.out
