@@ -2265,7 +2265,7 @@ func (r ApiRegisterTaskWebhookRequest) Execute() (*TaskWebhookResponse, *http.Re
 RegisterTaskWebhook Register a webhook callback for terminal task events.
 
 Subscribes a caller-supplied HTTPS endpoint to receive POST
-callbacks when the task reaches a terminal state (`succeeded` /
+callbacks when the task reaches a terminal state (`completed` /
 `failed` / `canceled` / `timeout` / `rejected`). Idempotent on
 `(task_id, url)` — re-registering the same URL updates the token.
 

@@ -15,7 +15,7 @@ import (
 	"fmt"
 )
 
-// TaskStatus Canonical task lifecycle status. Aligned with Google A2A v1.0 + BeeOS extensions per ADR-0017 D2. Internal `msgderive.TaskStatus` names map 1:1 onto these wire values.  Non-terminal: `queued`, `running`, `input_required`, `auth_required`. Terminal: `succeeded`, `failed`, `canceled`, `timeout`, `rejected`.  State transitions: ``` queued → running → succeeded                ├→ failed                ├→ input_required ─→ running (on user.continue)                └→ auth_required  ─→ running (on user.auth_grant)     (any non-terminal) → canceled (explicit close)                         → timeout  (reaper)                         → rejected (agent_busy / explicit refuse) ``` 
+// TaskStatus Canonical task lifecycle status. Aligned with Google A2A v1.0 + BeeOS extensions per ADR-0017 D2. Internal `msgderive.TaskStatus` names map 1:1 onto these wire values.  Non-terminal: `queued`, `running`, `input_required`, `auth_required`. Terminal: `completed`, `failed`, `canceled`, `timeout`, `rejected`.  State transitions: ``` queued → running → completed                ├→ failed                ├→ input_required ─→ running (on user.continue)                └→ auth_required  ─→ running (on user.auth_grant)     (any non-terminal) → canceled (explicit close)                         → timeout  (reaper)                         → rejected (agent_busy / explicit refuse) ``` 
 type TaskStatus string
 
 // List of TaskStatus
@@ -24,7 +24,7 @@ const (
 	TASKSTATUS_RUNNING TaskStatus = "running"
 	TASKSTATUS_INPUT_REQUIRED TaskStatus = "input_required"
 	TASKSTATUS_AUTH_REQUIRED TaskStatus = "auth_required"
-	TASKSTATUS_SUCCEEDED TaskStatus = "succeeded"
+	TASKSTATUS_COMPLETED TaskStatus = "completed"
 	TASKSTATUS_FAILED TaskStatus = "failed"
 	TASKSTATUS_CANCELED TaskStatus = "canceled"
 	TASKSTATUS_TIMEOUT TaskStatus = "timeout"
@@ -37,7 +37,7 @@ var AllowedTaskStatusEnumValues = []TaskStatus{
 	"running",
 	"input_required",
 	"auth_required",
-	"succeeded",
+	"completed",
 	"failed",
 	"canceled",
 	"timeout",

@@ -11,7 +11,7 @@
 
 * `AUTH_REQUIRED` (value: `"auth_required"`)
 
-* `SUCCEEDED` (value: `"succeeded"`)
+* `COMPLETED` (value: `"completed"`)
 
 * `FAILED` (value: `"failed"`)
 
