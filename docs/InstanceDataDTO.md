@@ -39,6 +39,8 @@ Name | Type | Description | Notes
 **StoppedAt** | Pointer to **time.Time** |  | [optional] 
 **StatusEnteredAt** | Pointer to **time.Time** |  | [optional] 
 **ConnectivityUpdatedAt** | Pointer to **time.Time** |  | [optional] 
+**MsConnectionStatus** | Pointer to **string** | Independent MessageClient/Centrifugo connection reported by the current Runtime. One of &#x60;unknown&#x60; | &#x60;connecting&#x60; | &#x60;connected&#x60; | &#x60;reconnecting&#x60; | &#x60;disconnected&#x60; | &#x60;failed&#x60;. Cluster returns &#x60;unknown&#x60; when the Runtime lease is missing, expired, or the instance is stopped/terminated. This does not replace &#x60;connectivity&#x60;.  | [optional] 
+**MsConnectionUpdatedAt** | Pointer to **time.Time** |  | [optional] 
 **CreatedAt** | Pointer to **time.Time** |  | [optional] 
 **UpdatedAt** | Pointer to **time.Time** |  | [optional] 
 **ScreenshotUrl** | Pointer to **string** |  | [optional] 
@@ -843,6 +845,56 @@ SetConnectivityUpdatedAt sets ConnectivityUpdatedAt field to given value.
 `func (o *InstanceDataDTO) HasConnectivityUpdatedAt() bool`
 
 HasConnectivityUpdatedAt returns a boolean if a field has been set.
+
+### GetMsConnectionStatus
+
+`func (o *InstanceDataDTO) GetMsConnectionStatus() string`
+
+GetMsConnectionStatus returns the MsConnectionStatus field if non-nil, zero value otherwise.
+
+### GetMsConnectionStatusOk
+
+`func (o *InstanceDataDTO) GetMsConnectionStatusOk() (*string, bool)`
+
+GetMsConnectionStatusOk returns a tuple with the MsConnectionStatus field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetMsConnectionStatus
+
+`func (o *InstanceDataDTO) SetMsConnectionStatus(v string)`
+
+SetMsConnectionStatus sets MsConnectionStatus field to given value.
+
+### HasMsConnectionStatus
+
+`func (o *InstanceDataDTO) HasMsConnectionStatus() bool`
+
+HasMsConnectionStatus returns a boolean if a field has been set.
+
+### GetMsConnectionUpdatedAt
+
+`func (o *InstanceDataDTO) GetMsConnectionUpdatedAt() time.Time`
+
+GetMsConnectionUpdatedAt returns the MsConnectionUpdatedAt field if non-nil, zero value otherwise.
+
+### GetMsConnectionUpdatedAtOk
+
+`func (o *InstanceDataDTO) GetMsConnectionUpdatedAtOk() (*time.Time, bool)`
+
+GetMsConnectionUpdatedAtOk returns a tuple with the MsConnectionUpdatedAt field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetMsConnectionUpdatedAt
+
+`func (o *InstanceDataDTO) SetMsConnectionUpdatedAt(v time.Time)`
+
+SetMsConnectionUpdatedAt sets MsConnectionUpdatedAt field to given value.
+
+### HasMsConnectionUpdatedAt
+
+`func (o *InstanceDataDTO) HasMsConnectionUpdatedAt() bool`
+
+HasMsConnectionUpdatedAt returns a boolean if a field has been set.
 
 ### GetCreatedAt
 

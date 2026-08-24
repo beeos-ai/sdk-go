@@ -62,6 +62,9 @@ type InstanceDataDTO struct {
 	StoppedAt *time.Time `json:"stoppedAt,omitempty"`
 	StatusEnteredAt *time.Time `json:"statusEnteredAt,omitempty"`
 	ConnectivityUpdatedAt *time.Time `json:"connectivityUpdatedAt,omitempty"`
+	// Independent MessageClient/Centrifugo connection reported by the current Runtime. One of `unknown` | `connecting` | `connected` | `reconnecting` | `disconnected` | `failed`. Cluster returns `unknown` when the Runtime lease is missing, expired, or the instance is stopped/terminated. This does not replace `connectivity`. 
+	MsConnectionStatus *string `json:"msConnectionStatus,omitempty"`
+	MsConnectionUpdatedAt *time.Time `json:"msConnectionUpdatedAt,omitempty"`
 	CreatedAt *time.Time `json:"createdAt,omitempty"`
 	UpdatedAt *time.Time `json:"updatedAt,omitempty"`
 	ScreenshotUrl *string `json:"screenshotUrl,omitempty"`
@@ -1076,6 +1079,70 @@ func (o *InstanceDataDTO) SetConnectivityUpdatedAt(v time.Time) {
 	o.ConnectivityUpdatedAt = &v
 }
 
+// GetMsConnectionStatus returns the MsConnectionStatus field value if set, zero value otherwise.
+func (o *InstanceDataDTO) GetMsConnectionStatus() string {
+	if o == nil || IsNil(o.MsConnectionStatus) {
+		var ret string
+		return ret
+	}
+	return *o.MsConnectionStatus
+}
+
+// GetMsConnectionStatusOk returns a tuple with the MsConnectionStatus field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *InstanceDataDTO) GetMsConnectionStatusOk() (*string, bool) {
+	if o == nil || IsNil(o.MsConnectionStatus) {
+		return nil, false
+	}
+	return o.MsConnectionStatus, true
+}
+
+// HasMsConnectionStatus returns a boolean if a field has been set.
+func (o *InstanceDataDTO) HasMsConnectionStatus() bool {
+	if o != nil && !IsNil(o.MsConnectionStatus) {
+		return true
+	}
+
+	return false
+}
+
+// SetMsConnectionStatus gets a reference to the given string and assigns it to the MsConnectionStatus field.
+func (o *InstanceDataDTO) SetMsConnectionStatus(v string) {
+	o.MsConnectionStatus = &v
+}
+
+// GetMsConnectionUpdatedAt returns the MsConnectionUpdatedAt field value if set, zero value otherwise.
+func (o *InstanceDataDTO) GetMsConnectionUpdatedAt() time.Time {
+	if o == nil || IsNil(o.MsConnectionUpdatedAt) {
+		var ret time.Time
+		return ret
+	}
+	return *o.MsConnectionUpdatedAt
+}
+
+// GetMsConnectionUpdatedAtOk returns a tuple with the MsConnectionUpdatedAt field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *InstanceDataDTO) GetMsConnectionUpdatedAtOk() (*time.Time, bool) {
+	if o == nil || IsNil(o.MsConnectionUpdatedAt) {
+		return nil, false
+	}
+	return o.MsConnectionUpdatedAt, true
+}
+
+// HasMsConnectionUpdatedAt returns a boolean if a field has been set.
+func (o *InstanceDataDTO) HasMsConnectionUpdatedAt() bool {
+	if o != nil && !IsNil(o.MsConnectionUpdatedAt) {
+		return true
+	}
+
+	return false
+}
+
+// SetMsConnectionUpdatedAt gets a reference to the given time.Time and assigns it to the MsConnectionUpdatedAt field.
+func (o *InstanceDataDTO) SetMsConnectionUpdatedAt(v time.Time) {
+	o.MsConnectionUpdatedAt = &v
+}
+
 // GetCreatedAt returns the CreatedAt field value if set, zero value otherwise.
 func (o *InstanceDataDTO) GetCreatedAt() time.Time {
 	if o == nil || IsNil(o.CreatedAt) {
@@ -1312,6 +1379,12 @@ func (o InstanceDataDTO) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.ConnectivityUpdatedAt) {
 		toSerialize["connectivityUpdatedAt"] = o.ConnectivityUpdatedAt
+	}
+	if !IsNil(o.MsConnectionStatus) {
+		toSerialize["msConnectionStatus"] = o.MsConnectionStatus
+	}
+	if !IsNil(o.MsConnectionUpdatedAt) {
+		toSerialize["msConnectionUpdatedAt"] = o.MsConnectionUpdatedAt
 	}
 	if !IsNil(o.CreatedAt) {
 		toSerialize["createdAt"] = o.CreatedAt

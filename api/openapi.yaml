@@ -5183,6 +5183,7 @@ components:
         clusterId: clusterId
         ownerId: ownerId
         isTrial: true
+        msConnectionStatus: unknown
         createdAt: 2000-01-23T04:56:07.000+00:00
         endpoint: endpoint
         bridgeId: bridgeId
@@ -5209,6 +5210,7 @@ components:
           key: ""
         totalRunSeconds: 0
         expiresAt: 2000-01-23T04:56:07.000+00:00
+        msConnectionUpdatedAt: 2000-01-23T04:56:07.000+00:00
         systemPrompt: systemPrompt
         connectivityUpdatedAt: 2000-01-23T04:56:07.000+00:00
         screenshotUrl: screenshotUrl
@@ -5322,6 +5324,25 @@ components:
         connectivityUpdatedAt:
           format: date-time
           type: string
+        msConnectionStatus:
+          description: |
+            Independent MessageClient/Centrifugo connection reported by the
+            current Runtime. One of `unknown` | `connecting` | `connected` |
+            `reconnecting` | `disconnected` | `failed`. Cluster returns
+            `unknown` when the Runtime lease is missing, expired, or the
+            instance is stopped/terminated. This does not replace
+            `connectivity`.
+          enum:
+          - unknown
+          - connecting
+          - connected
+          - reconnecting
+          - disconnected
+          - failed
+          type: string
+        msConnectionUpdatedAt:
+          format: date-time
+          type: string
         createdAt:
           format: date-time
           type: string
@@ -5384,6 +5405,7 @@ components:
           clusterId: clusterId
           ownerId: ownerId
           isTrial: true
+          msConnectionStatus: unknown
           createdAt: 2000-01-23T04:56:07.000+00:00
           endpoint: endpoint
           bridgeId: bridgeId
@@ -5410,6 +5432,7 @@ components:
             key: ""
           totalRunSeconds: 0
           expiresAt: 2000-01-23T04:56:07.000+00:00
+          msConnectionUpdatedAt: 2000-01-23T04:56:07.000+00:00
           systemPrompt: systemPrompt
           connectivityUpdatedAt: 2000-01-23T04:56:07.000+00:00
           screenshotUrl: screenshotUrl
@@ -5446,6 +5469,7 @@ components:
           clusterId: clusterId
           ownerId: ownerId
           isTrial: true
+          msConnectionStatus: unknown
           createdAt: 2000-01-23T04:56:07.000+00:00
           endpoint: endpoint
           bridgeId: bridgeId
@@ -5472,6 +5496,7 @@ components:
             key: ""
           totalRunSeconds: 0
           expiresAt: 2000-01-23T04:56:07.000+00:00
+          msConnectionUpdatedAt: 2000-01-23T04:56:07.000+00:00
           systemPrompt: systemPrompt
           connectivityUpdatedAt: 2000-01-23T04:56:07.000+00:00
           screenshotUrl: screenshotUrl
@@ -5491,6 +5516,7 @@ components:
           clusterId: clusterId
           ownerId: ownerId
           isTrial: true
+          msConnectionStatus: unknown
           createdAt: 2000-01-23T04:56:07.000+00:00
           endpoint: endpoint
           bridgeId: bridgeId
@@ -5517,6 +5543,7 @@ components:
             key: ""
           totalRunSeconds: 0
           expiresAt: 2000-01-23T04:56:07.000+00:00
+          msConnectionUpdatedAt: 2000-01-23T04:56:07.000+00:00
           systemPrompt: systemPrompt
           connectivityUpdatedAt: 2000-01-23T04:56:07.000+00:00
           screenshotUrl: screenshotUrl
