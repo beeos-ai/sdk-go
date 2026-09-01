@@ -33,6 +33,23 @@ agents, err := client.ListAgents(context.Background())
 
 `client.API` exposes the complete generated Platform OpenAPI surface.
 
+For phone automation across Device Agent, BeeRunner, and Redroid:
+
+```go
+mobile, err := beeos.NewMobileClient(beeos.MobileClientOptions{
+    ClientOptions: beeos.ClientOptions{APIKey: os.Getenv("BEEOS_API_KEY")},
+    AgentID: "agent-id", InstanceID: "instance-id",
+})
+if err != nil { log.Fatal(err) }
+
+if _, err = mobile.WaitReady(ctx); err != nil { log.Fatal(err) }
+result, err := mobile.Run(ctx, *beeos.NewCreateTaskRequest("Open Settings"))
+```
+
+`mobile.API.MobileAPI` exposes the generated atomic-control API. BeeRunner
+uses the durable task methods and does not advertise atomic control until a
+trusted Portal adapter exists.
+
 ## Regenerate (maintainers)
 
 From the monorepo: `cd sdks/openapi-sdk && ./generate.sh`

@@ -20,6 +20,8 @@ docs/AgentDTO.md
 docs/AgentListResponse.md
 docs/AgentResponse.md
 docs/AgentsAPI.md
+docs/AppInfo.md
+docs/AppListResult.md
 docs/AttachmentRef.md
 docs/CancelConversation202Response.md
 docs/CancelConversation202ResponseData.md
@@ -47,6 +49,7 @@ docs/DeployModelsListResponse.md
 docs/DeployRegionItem.md
 docs/DeployRegionsListResponse.md
 docs/DeviceInfoDTO.md
+docs/DragRequest.md
 docs/Error.md
 docs/ErrorResponse.md
 docs/FileMetaResponse.md
@@ -80,11 +83,15 @@ docs/ListTasksResponse.md
 docs/ListTasksResponseAllOfData.md
 docs/ListWebhookDeliveriesResponse.md
 docs/ListWebhookDeliveriesResponseAllOfData.md
+docs/LongPressRequest.md
 docs/MessageDTO.md
 docs/MessageEnvelope.md
 docs/MessageState.md
 docs/MobileAPI.md
+docs/MobileGetUiTree200Response.md
+docs/MobileListApps200Response.md
 docs/MoveRequest.md
+docs/OpenAppRequest.md
 docs/Part.md
 docs/PartCustom.md
 docs/PartFile.md
@@ -150,6 +157,7 @@ docs/TaskWebhookResponse.md
 docs/TaskWebhookResponseAllOfData.md
 docs/TasksAPI.md
 docs/TypeRequest.md
+docs/UITreeResult.md
 docs/UpdateAgentRequest.md
 docs/WebhookDeliveryResponse.md
 git_push.sh
@@ -160,6 +168,8 @@ model_agent_capabilities_dto.go
 model_agent_dto.go
 model_agent_list_response.go
 model_agent_response.go
+model_app_info.go
+model_app_list_result.go
 model_attachment_ref.go
 model_cancel_conversation_202_response.go
 model_cancel_conversation_202_response_data.go
@@ -183,6 +193,7 @@ model_deploy_models_list_response.go
 model_deploy_region_item.go
 model_deploy_regions_list_response.go
 model_device_info_dto.go
+model_drag_request.go
 model_error.go
 model_error_response.go
 model_file_meta_response.go
@@ -214,10 +225,14 @@ model_list_tasks_response.go
 model_list_tasks_response_all_of_data.go
 model_list_webhook_deliveries_response.go
 model_list_webhook_deliveries_response_all_of_data.go
+model_long_press_request.go
 model_message_dto.go
 model_message_envelope.go
 model_message_state.go
+model_mobile_get_ui_tree_200_response.go
+model_mobile_list_apps_200_response.go
 model_move_request.go
+model_open_app_request.go
 model_part.go
 model_part_custom.go
 model_part_file.go
@@ -282,6 +297,7 @@ model_task_summary.go
 model_task_webhook_response.go
 model_task_webhook_response_all_of_data.go
 model_type_request.go
+model_ui_tree_result.go
 model_update_agent_request.go
 model_webhook_delivery_response.go
 response.go

@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 )
 
 // Client is the stable convenience facade. API exposes the full generated client.
@@ -31,6 +32,22 @@ type TaskEvent struct {
 	Data  json.RawMessage
 }
 
+type MobileClientOptions struct {
+	ClientOptions
+	AgentID      string
+	InstanceID   string
+	PollInterval time.Duration
+}
+
+// MobileClient is the task-first facade shared by Device Agent, BeeRunner,
+// and Redroid. Direct MobileAPI methods remain available through Client.API.
+type MobileClient struct {
+	*Client
+	AgentID      string
+	InstanceID   string
+	pollInterval time.Duration
+}
+
 func NewClient(options ClientOptions) (*Client, error) {
 	if options.APIKey == "" {
 		return nil, fmt.Errorf("api key is required")
@@ -50,6 +67,90 @@ func NewClient(options ClientOptions) (*Client, error) {
 		baseURL: strings.TrimRight(options.BaseURL, "/"),
 		http:    options.HTTPClient,
 	}, nil
+}
+
+func NewMobileClient(options MobileClientOptions) (*MobileClient, error) {
+	client, err := NewClient(options.ClientOptions)
+	if err != nil {
+		return nil, err
+	}
+	if options.AgentID == "" {
+		return nil, fmt.Errorf("agent id is required")
+	}
+	if options.InstanceID == "" {
+		return nil, fmt.Errorf("instance id is required")
+	}
+	if options.PollInterval <= 0 {
+		options.PollInterval = time.Second
+	}
+	return &MobileClient{
+		Client: client, AgentID: options.AgentID, InstanceID: options.InstanceID,
+		pollInterval: options.PollInterval,
+	}, nil
+}
+
+// WaitReady polls live mobile control info until the runtime reports online.
+func (c *MobileClient) WaitReady(ctx context.Context) (*GetComputerInfo200Response, error) {
+	for {
+		response, _, err := c.API.MobileAPI.GetMobileInfo(c.authContext(ctx), c.InstanceID).Execute()
+		if err != nil {
+			return nil, err
+		}
+		if response.Data != nil && response.Data.Online {
+			return response, nil
+		}
+		if err := waitContext(ctx, c.pollInterval); err != nil {
+			return nil, err
+		}
+	}
+}
+
+// Run creates a durable task and waits for its terminal snapshot.
+func (c *MobileClient) Run(ctx context.Context, request CreateTaskRequest) (*TaskResponse, error) {
+	created, err := c.CreateTask(ctx, c.AgentID, request)
+	if err != nil {
+		return nil, err
+	}
+	for {
+		snapshot, err := c.GetTask(ctx, c.AgentID, created.Data.TaskId)
+		if err != nil {
+			return nil, err
+		}
+		if isTerminalTaskStatus(snapshot.Data.Status) {
+			return snapshot, nil
+		}
+		if err := waitContext(ctx, c.pollInterval); err != nil {
+			return nil, err
+		}
+	}
+}
+
+func (c *MobileClient) Watch(ctx context.Context, taskID string, since int64) (<-chan TaskEvent, <-chan error) {
+	return c.TaskEvents(ctx, c.AgentID, taskID, since)
+}
+
+func (c *MobileClient) Cancel(ctx context.Context, taskID string) (*TaskResponse, error) {
+	return c.CancelTask(ctx, c.AgentID, taskID)
+}
+
+func isTerminalTaskStatus(status TaskStatus) bool {
+	switch status {
+	case TASKSTATUS_COMPLETED, TASKSTATUS_FAILED, TASKSTATUS_CANCELED, TASKSTATUS_TIMEOUT, TASKSTATUS_REJECTED:
+		return true
+	default:
+		return string(status) == "cancelled"
+	}
+}
+
+func waitContext(ctx context.Context, interval time.Duration) error {
+	timer := time.NewTimer(interval)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
 }
 
 func (c *Client) authContext(ctx context.Context) context.Context {
