@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 )
@@ -48,24 +49,39 @@ type MobileClient struct {
 	pollInterval time.Duration
 }
 
-func NewClient(options ClientOptions) (*Client, error) {
-	if options.APIKey == "" {
-		return nil, fmt.Errorf("api key is required")
+func NewClient(options ...ClientOptions) (*Client, error) {
+	if len(options) > 1 {
+		return nil, fmt.Errorf("expected at most one ClientOptions value")
 	}
-	if options.BaseURL == "" {
-		options.BaseURL = "https://openapi.beeos.ai"
+	resolved := ClientOptions{}
+	if len(options) == 1 {
+		resolved = options[0]
 	}
-	if options.HTTPClient == nil {
-		options.HTTPClient = http.DefaultClient
+	resolved.APIKey = strings.TrimSpace(resolved.APIKey)
+	if resolved.APIKey == "" {
+		resolved.APIKey = strings.TrimSpace(os.Getenv("BEEOS_API_KEY"))
+	}
+	if resolved.APIKey == "" {
+		return nil, fmt.Errorf("api key is required; pass it explicitly or set BEEOS_API_KEY")
+	}
+	resolved.BaseURL = strings.TrimSpace(resolved.BaseURL)
+	if resolved.BaseURL == "" {
+		resolved.BaseURL = strings.TrimSpace(os.Getenv("BEEOS_API_URL"))
+	}
+	if resolved.BaseURL == "" {
+		resolved.BaseURL = "https://openapi.beeos.ai"
+	}
+	if resolved.HTTPClient == nil {
+		resolved.HTTPClient = http.DefaultClient
 	}
 	cfg := NewConfiguration()
-	cfg.Servers = ServerConfigurations{{URL: strings.TrimRight(options.BaseURL, "/")}}
-	cfg.HTTPClient = options.HTTPClient
+	cfg.Servers = ServerConfigurations{{URL: strings.TrimRight(resolved.BaseURL, "/")}}
+	cfg.HTTPClient = resolved.HTTPClient
 	return &Client{
 		API:     NewAPIClient(cfg),
-		apiKey:  options.APIKey,
-		baseURL: strings.TrimRight(options.BaseURL, "/"),
-		http:    options.HTTPClient,
+		apiKey:  resolved.APIKey,
+		baseURL: strings.TrimRight(resolved.BaseURL, "/"),
+		http:    resolved.HTTPClient,
 	}, nil
 }
 
