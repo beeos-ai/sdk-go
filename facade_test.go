@@ -2,6 +2,7 @@ package beeos
 
 import (
 	"bytes"
+	"net/http"
 	"testing"
 )
 
@@ -18,8 +19,33 @@ func TestScanTaskEvents(t *testing.T) {
 }
 
 func TestNewClientRequiresAPIKey(t *testing.T) {
+	t.Setenv("BEEOS_API_KEY", "")
 	if _, err := NewClient(ClientOptions{}); err == nil {
 		t.Fatal("expected missing API key error")
+	}
+}
+
+func TestNewClientReadsEnvironment(t *testing.T) {
+	t.Setenv("BEEOS_API_KEY", "environment-key")
+	t.Setenv("BEEOS_API_URL", "https://environment.example/")
+	client, err := NewClient()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if client.apiKey != "environment-key" {
+		t.Fatalf("unexpected api key: %q", client.apiKey)
+	}
+	if client.baseURL != "https://environment.example" {
+		t.Fatalf("unexpected base URL: %q", client.baseURL)
+	}
+	if client.http != http.DefaultClient {
+		t.Fatal("expected default HTTP client")
+	}
+}
+
+func TestNewClientRejectsMultipleOptions(t *testing.T) {
+	if _, err := NewClient(ClientOptions{}, ClientOptions{}); err == nil {
+		t.Fatal("expected multiple options error")
 	}
 }
 

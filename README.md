@@ -14,18 +14,15 @@ go get github.com/beeos-ai/sdk-go@latest
 
 ## Usage
 
-- **Base path** — point the generated `Configuration` at your `openapi-gateway`
-  host (dev `http://localhost:8095`, prod e.g. `https://openapi.beeos.ai`).
-- **Auth** — pass `Authorization: Bearer <jwt>` or
-  `Authorization: Bearer oag_<user-api-key>` via the `http.Client.Transport`
-  wrapper you inject into the generated API client.
+- **Base URL** — the facade uses `https://openapi.beeos.ai` by default. Set
+  `BEEOS_API_URL` or pass `BaseURL` to target another environment.
+- **Auth** — set `BEEOS_API_KEY`, or pass `APIKey` explicitly. The generated
+  client also supports custom authorization through its request context.
 
 For the stable, task-focused facade:
 
 ```go
-client, err := beeos.NewClient(beeos.ClientOptions{
-    APIKey: os.Getenv("BEEOS_API_KEY"),
-})
+client, err := beeos.NewClient()
 if err != nil { log.Fatal(err) }
 
 agents, err := client.ListAgents(context.Background())
@@ -37,7 +34,6 @@ For phone automation across Device Agent, BeeRunner, and Redroid:
 
 ```go
 mobile, err := beeos.NewMobileClient(beeos.MobileClientOptions{
-    ClientOptions: beeos.ClientOptions{APIKey: os.Getenv("BEEOS_API_KEY")},
     AgentID: "agent-id", InstanceID: "instance-id",
 })
 if err != nil { log.Fatal(err) }
