@@ -4,9 +4,9 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**App** | **string** | Android package id or installed app display name. |
-**Activity** | Pointer to **string** |  | [optional]
-**Locale** | Pointer to **string** | Optional BCP-47 per-app locale (Android 13+, best effort). | [optional]
+**App** | **string** | Android package id or installed app display name. | 
+**Activity** | Pointer to **string** |  | [optional] 
+**Locale** | Pointer to **string** | Optional BCP-47 per-app locale (Android 13+, best effort). | [optional] 
 
 ## Methods
 

@@ -11,10 +11,10 @@ package beeos
 
 import (
 	"context"
-	openapiclient "github.com/beeos-ai/sdk-go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"testing"
+	openapiclient "github.com/beeos-ai/sdk-go"
 )
 
 func Test_beeos_MobileAPIService(t *testing.T) {
@@ -24,7 +24,7 @@ func Test_beeos_MobileAPIService(t *testing.T) {
 
 	t.Run("Test MobileAPIService GetMobileInfo", func(t *testing.T) {
 
-		t.Skip("skip test") // remove to run test
+		t.Skip("skip test")  // remove to run test
 
 		var id string
 
@@ -38,7 +38,7 @@ func Test_beeos_MobileAPIService(t *testing.T) {
 
 	t.Run("Test MobileAPIService MobileDoubleTap", func(t *testing.T) {
 
-		t.Skip("skip test") // remove to run test
+		t.Skip("skip test")  // remove to run test
 
 		var id string
 
@@ -52,7 +52,7 @@ func Test_beeos_MobileAPIService(t *testing.T) {
 
 	t.Run("Test MobileAPIService MobileDrag", func(t *testing.T) {
 
-		t.Skip("skip test") // remove to run test
+		t.Skip("skip test")  // remove to run test
 
 		var id string
 
@@ -66,7 +66,7 @@ func Test_beeos_MobileAPIService(t *testing.T) {
 
 	t.Run("Test MobileAPIService MobileGetUiTree", func(t *testing.T) {
 
-		t.Skip("skip test") // remove to run test
+		t.Skip("skip test")  // remove to run test
 
 		var id string
 
@@ -80,7 +80,7 @@ func Test_beeos_MobileAPIService(t *testing.T) {
 
 	t.Run("Test MobileAPIService MobileKey", func(t *testing.T) {
 
-		t.Skip("skip test") // remove to run test
+		t.Skip("skip test")  // remove to run test
 
 		var id string
 
@@ -94,7 +94,7 @@ func Test_beeos_MobileAPIService(t *testing.T) {
 
 	t.Run("Test MobileAPIService MobileListApps", func(t *testing.T) {
 
-		t.Skip("skip test") // remove to run test
+		t.Skip("skip test")  // remove to run test
 
 		var id string
 
@@ -108,7 +108,7 @@ func Test_beeos_MobileAPIService(t *testing.T) {
 
 	t.Run("Test MobileAPIService MobileLongPress", func(t *testing.T) {
 
-		t.Skip("skip test") // remove to run test
+		t.Skip("skip test")  // remove to run test
 
 		var id string
 
@@ -122,7 +122,7 @@ func Test_beeos_MobileAPIService(t *testing.T) {
 
 	t.Run("Test MobileAPIService MobileOpenApp", func(t *testing.T) {
 
-		t.Skip("skip test") // remove to run test
+		t.Skip("skip test")  // remove to run test
 
 		var id string
 
@@ -136,7 +136,7 @@ func Test_beeos_MobileAPIService(t *testing.T) {
 
 	t.Run("Test MobileAPIService MobilePressButton", func(t *testing.T) {
 
-		t.Skip("skip test") // remove to run test
+		t.Skip("skip test")  // remove to run test
 
 		var id string
 
@@ -150,7 +150,7 @@ func Test_beeos_MobileAPIService(t *testing.T) {
 
 	t.Run("Test MobileAPIService MobileScreenshot", func(t *testing.T) {
 
-		t.Skip("skip test") // remove to run test
+		t.Skip("skip test")  // remove to run test
 
 		var id string
 
@@ -164,7 +164,7 @@ func Test_beeos_MobileAPIService(t *testing.T) {
 
 	t.Run("Test MobileAPIService MobileScroll", func(t *testing.T) {
 
-		t.Skip("skip test") // remove to run test
+		t.Skip("skip test")  // remove to run test
 
 		var id string
 
@@ -178,7 +178,7 @@ func Test_beeos_MobileAPIService(t *testing.T) {
 
 	t.Run("Test MobileAPIService MobileSwipe", func(t *testing.T) {
 
-		t.Skip("skip test") // remove to run test
+		t.Skip("skip test")  // remove to run test
 
 		var id string
 
@@ -192,7 +192,7 @@ func Test_beeos_MobileAPIService(t *testing.T) {
 
 	t.Run("Test MobileAPIService MobileTap", func(t *testing.T) {
 
-		t.Skip("skip test") // remove to run test
+		t.Skip("skip test")  // remove to run test
 
 		var id string
 
@@ -206,7 +206,7 @@ func Test_beeos_MobileAPIService(t *testing.T) {
 
 	t.Run("Test MobileAPIService MobileType", func(t *testing.T) {
 
-		t.Skip("skip test") // remove to run test
+		t.Skip("skip test")  // remove to run test
 
 		var id string
 

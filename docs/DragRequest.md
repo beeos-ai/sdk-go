@@ -4,11 +4,11 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**X1** | **int32** |  |
-**Y1** | **int32** |  |
-**X2** | **int32** |  |
-**Y2** | **int32** |  |
-**DurationMs** | Pointer to **int32** | Drag duration; clamped device-side to [1, 10000]. | [optional]
+**X1** | **int32** |  | 
+**Y1** | **int32** |  | 
+**X2** | **int32** |  | 
+**Y2** | **int32** |  | 
+**DurationMs** | Pointer to **int32** | Drag duration; clamped device-side to [1, 10000]. | [optional] 
 
 ## Methods
 

@@ -1,7 +1,7 @@
 /*
 BeeOS OpenAPI (user contract)
 
-The **BeeOS OpenAPI** user contract. The sole implementer is **[`services/openapi-gateway`](../services/openapi-gateway)** (`openapi-gw`, local `:8095`). SDKs (Go / TypeScript) published under [`sdks/beeos-ai-sdk-go`](../../sdks/beeos-ai-sdk-go) and [`sdks/beeos-ai-sdk`](../../sdks/beeos-ai-sdk) are generated directly from this document.  The main user Gateway (`services/gateway`, `:9080`) serves web / mobile / desktop clients and is **not** described by this document. It maintains its own route set independent of the SDK contract.  **Auth:** every operation requires either a user **JWT** or a **`oag_`** User API Key, both on `Authorization: Bearer`. Agent-level protocol endpoints (A2A JSON-RPC with `bak_`, MCP) live in [beeos-agent-integration-v1.yaml](beeos-agent-integration-v1.yaml) and are hosted by A2A Gateway / MCP Gateway — not by `openapi-gateway`.  ## Changelog  ### 1.1.0 (ADR-0022 — dual-layer message storage)  BREAKING for clients that depended on full streaming chunk replay via the persistent message log:  * `GET /api/v1/agents/{agentId}/conversations/{convId}/messages`   and `GET /api/v1/agents/{agentId}/tasks/{taskId}/messages` now   **default-filter out** ephemeral streaming chunks   (`agent_reply_delta`, `agent_thought_chunk`,   `agent_message_chunk`). Add `?include_deltas=true` to opt back in. * `latest_offset` continues to reflect the TRUE server-side max   offset across both filtered and unfiltered rows, so `since=` /   cursor-style pagination is unaffected. * SSE `/events` is **NOT** affected — live consumers continue to   receive every envelope as it happens. * Backwards-compatible recovery path: SSE `/events` may now emit   a `backfill_truncated` event frame when the client reconnects   with `Last-Event-ID` before the oldest retained chunk. SDKs   that don't recognise the frame should treat it as a hint to   resume from `oldest_redis_offset` instead (the field carrying   the smallest offset still readable on the per-channel stream). * **Clarified contract**: SSE event `offset` is strictly monotonic   per channel but **NOT guaranteed contiguous** (ADR-0022 §1.2).   Producer-side write failures may leave small holes; clients MUST   use `offset > since`, never `offset == since + 1`.  BREAKING for clients that depended on the `oag_` API key scope vocabulary:  * The per-route scope gate (`agents:read`, `agents:write`,   `tasks:read`, `tasks:write`, `files:read`, `files:write`,   `instances:read`, `instances:write`, plus the `admin:*` wildcard)   has been **removed entirely**. The 37 routes that previously   required scopes are now governed exclusively by owner-ACL — an   `oag_` User API Key inherits full access to its owner's resources. * The `403 insufficient_scope` error code is no longer emitted.   Existing callers that branched on it should fold the case into   their generic 403 / `forbidden` handler. * SDK clients that explicitly passed `scopes` to `createAPIKey`   should drop that argument. The Web / Desktop UIs no longer render   scope badges on existing keys. * Existing `oag_` keys continue to work unchanged — the owner_id   binding is preserved, and no key needs to be re-issued.  BREAKING for clients of `GET /api/v1/providers` that read the `capabilities` object on the wire:  * 7 of the 8 `capabilities` field names are now **camelCase**   (`longRunning`, `browserUse`, `codeExec`, `fileSystem`,   `customImage`, `maxDurationSec`, `costModel`) — matching this   OpenAPI contract. Previous wire emitted **snake_case**   (`long_running`, `browser_use`, …) because the server DTO bound   `capabilities` to the raw protobuf message   (`*pb.ProviderCapabilities`) whose auto-generated `json` tags   use snake_case. SDK consumers (`@beeos-ai/sdk`,   `github.com/beeos-ai/sdk-go`) generated from this spec were   **already unable** to read any `capabilities` field — the   camelCase property names produced by the generator never   matched the snake_case the server actually sent. Raw HTTP   callers that hand-coded against the old snake_case names must   migrate; SDK callers gain access to the field set for the first   time without code changes. * Note: the `device` boolean was always a single word — its wire   name (`device`) is unchanged. Only the seven multi-word   capability fields are affected by the rename. * `meta`, `id`, `name`, `description`, `version` are unchanged. * A new drift-guard (`internal/dto/contract_test.go`) now locks   the server DTO to the spec property names, so the two cannot   silently diverge again.  ### 1.0.0  Initial OpenAPI contract (ADR-001).
+The **BeeOS OpenAPI** user contract. The sole implementer is **[`services/openapi-gateway`](../services/openapi-gateway)** (`openapi-gw`, local `:8095`). SDKs (Go / TypeScript) published under [`sdks/beeos-ai-sdk-go`](../../sdks/beeos-ai-sdk-go) and [`sdks/beeos-ai-sdk`](../../sdks/beeos-ai-sdk) are generated directly from this document.  The main user Gateway (`services/gateway`, `:9080`) serves web / mobile / desktop clients and is **not** described by this document. It maintains its own route set independent of the SDK contract.  **Auth:** every operation requires either a user **JWT** or a **`oag_`** User API Key, both on `Authorization: Bearer`. Agent-level protocol endpoints (A2A JSON-RPC with `bak_`, MCP) live in [beeos-agent-integration-v1.yaml](beeos-agent-integration-v1.yaml) and are hosted by A2A Gateway / MCP Gateway — not by `openapi-gateway`.  **Atomic control admission:** Computer/Mobile `info` shares a 300/minute owner-scoped budget; all other Computer/Mobile atomic operations together share 60/minute. Equivalent MCP atomic tools consume the same budgets. Capacity replenishes continuously (GCRA), with an initial burst equal to the minute rate. Switching credentials, devices or protocols does not reset capacity. Exhaustion returns 429 `rate_limited` with `Retry-After`; an unavailable quota store returns 503 `control_rate_limit_unavailable` before dispatch. These limits do not define billing or device task concurrency.  ## Changelog  ### 1.1.0 (ADR-0022 — dual-layer message storage)  BREAKING for clients that depended on full streaming chunk replay via the persistent message log:  * `GET /api/v1/agents/{agentId}/conversations/{convId}/messages`   and `GET /api/v1/agents/{agentId}/tasks/{taskId}/messages` now   **default-filter out** ephemeral streaming chunks   (`agent_reply_delta`, `agent_thought_chunk`,   `agent_message_chunk`). Add `?include_deltas=true` to opt back in. * `latest_offset` continues to reflect the TRUE server-side max   offset across both filtered and unfiltered rows, so `since=` /   cursor-style pagination is unaffected. * SSE `/events` is **NOT** affected — live consumers continue to   receive every envelope as it happens. * Backwards-compatible recovery path: SSE `/events` may now emit   a `backfill_truncated` event frame when the client reconnects   with `Last-Event-ID` before the oldest retained chunk. SDKs   that don't recognise the frame should treat it as a hint to   resume from `oldest_redis_offset` instead (the field carrying   the smallest offset still readable on the per-channel stream). * **Clarified contract**: SSE event `offset` is strictly monotonic   per channel but **NOT guaranteed contiguous** (ADR-0022 §1.2).   Producer-side write failures may leave small holes; clients MUST   use `offset > since`, never `offset == since + 1`.  BREAKING for clients that depended on the `oag_` API key scope vocabulary:  * The per-route scope gate (`agents:read`, `agents:write`,   `tasks:read`, `tasks:write`, `files:read`, `files:write`,   `instances:read`, `instances:write`, plus the `admin:*` wildcard)   has been **removed entirely**. The 37 routes that previously   required scopes are now governed exclusively by owner-ACL — an   `oag_` User API Key inherits full access to its owner's resources. * The `403 insufficient_scope` error code is no longer emitted.   Existing callers that branched on it should fold the case into   their generic 403 / `forbidden` handler. * SDK clients that explicitly passed `scopes` to `createAPIKey`   should drop that argument. The Web / Desktop UIs no longer render   scope badges on existing keys. * Existing `oag_` keys continue to work unchanged — the owner_id   binding is preserved, and no key needs to be re-issued.  BREAKING for clients of `GET /api/v1/providers` that read the `capabilities` object on the wire:  * 7 of the 8 `capabilities` field names are now **camelCase**   (`longRunning`, `browserUse`, `codeExec`, `fileSystem`,   `customImage`, `maxDurationSec`, `costModel`) — matching this   OpenAPI contract. Previous wire emitted **snake_case**   (`long_running`, `browser_use`, …) because the server DTO bound   `capabilities` to the raw protobuf message   (`*pb.ProviderCapabilities`) whose auto-generated `json` tags   use snake_case. SDK consumers (`@beeos-ai/sdk`,   `github.com/beeos-ai/sdk-go`) generated from this spec were   **already unable** to read any `capabilities` field — the   camelCase property names produced by the generator never   matched the snake_case the server actually sent. Raw HTTP   callers that hand-coded against the old snake_case names must   migrate; SDK callers gain access to the field set for the first   time without code changes. * Note: the `device` boolean was always a single word — its wire   name (`device`) is unchanged. Only the seven multi-word   capability fields are affected by the rename. * `meta`, `id`, `name`, `description`, `version` are unchanged. * A new drift-guard (`internal/dto/contract_test.go`) now locks   the server DTO to the spec property names, so the two cannot   silently diverge again.  ### 1.0.0  Initial OpenAPI contract (ADR-001). 
 
 API version: 1.1.0
 */
@@ -19,13 +19,14 @@ import (
 	"strings"
 )
 
+
 // MobileAPIService MobileAPI service
 type MobileAPIService service
 
 type ApiGetMobileInfoRequest struct {
-	ctx        context.Context
+	ctx context.Context
 	ApiService *MobileAPIService
-	id         string
+	id string
 }
 
 func (r ApiGetMobileInfoRequest) Execute() (*GetComputerInfo200Response, *http.Response, error) {
@@ -46,27 +47,27 @@ model, OS, registered geometry, hardware capabilities) — readable
 even when the device is offline — use
 `GET /api/v1/instances/{id}/device/info` (`DeviceInfoDTO`) instead.
 
-	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@param id
-	@return ApiGetMobileInfoRequest
+
+ @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @param id
+ @return ApiGetMobileInfoRequest
 */
 func (a *MobileAPIService) GetMobileInfo(ctx context.Context, id string) ApiGetMobileInfoRequest {
 	return ApiGetMobileInfoRequest{
 		ApiService: a,
-		ctx:        ctx,
-		id:         id,
+		ctx: ctx,
+		id: id,
 	}
 }
 
 // Execute executes the request
-//
-//	@return GetComputerInfo200Response
+//  @return GetComputerInfo200Response
 func (a *MobileAPIService) GetMobileInfoExecute(r ApiGetMobileInfoRequest) (*GetComputerInfo200Response, *http.Response, error) {
 	var (
-		localVarHTTPMethod  = http.MethodGet
-		localVarPostBody    interface{}
-		formFiles           []formFile
-		localVarReturnValue *GetComputerInfo200Response
+		localVarHTTPMethod   = http.MethodGet
+		localVarPostBody     interface{}
+		formFiles            []formFile
+		localVarReturnValue  *GetComputerInfo200Response
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "MobileAPIService.GetMobileInfo")
@@ -130,8 +131,8 @@ func (a *MobileAPIService) GetMobileInfoExecute(r ApiGetMobileInfoRequest) (*Get
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode == 404 {
@@ -141,8 +142,8 @@ func (a *MobileAPIService) GetMobileInfoExecute(r ApiGetMobileInfoRequest) (*Get
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode == 429 {
@@ -152,8 +153,8 @@ func (a *MobileAPIService) GetMobileInfoExecute(r ApiGetMobileInfoRequest) (*Get
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode == 503 {
@@ -163,8 +164,8 @@ func (a *MobileAPIService) GetMobileInfoExecute(r ApiGetMobileInfoRequest) (*Get
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode >= 500 {
@@ -174,8 +175,8 @@ func (a *MobileAPIService) GetMobileInfoExecute(r ApiGetMobileInfoRequest) (*Get
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 		}
 		return localVarReturnValue, localVarHTTPResponse, newErr
 	}
@@ -193,9 +194,9 @@ func (a *MobileAPIService) GetMobileInfoExecute(r ApiGetMobileInfoRequest) (*Get
 }
 
 type ApiMobileDoubleTapRequest struct {
-	ctx        context.Context
+	ctx context.Context
 	ApiService *MobileAPIService
-	id         string
+	id string
 	tapRequest *TapRequest
 }
 
@@ -211,27 +212,26 @@ func (r ApiMobileDoubleTapRequest) Execute() (*InlineObject, *http.Response, err
 /*
 MobileDoubleTap Double-tap at (x, y).
 
-	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@param id
-	@return ApiMobileDoubleTapRequest
+ @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @param id
+ @return ApiMobileDoubleTapRequest
 */
 func (a *MobileAPIService) MobileDoubleTap(ctx context.Context, id string) ApiMobileDoubleTapRequest {
 	return ApiMobileDoubleTapRequest{
 		ApiService: a,
-		ctx:        ctx,
-		id:         id,
+		ctx: ctx,
+		id: id,
 	}
 }
 
 // Execute executes the request
-//
-//	@return InlineObject
+//  @return InlineObject
 func (a *MobileAPIService) MobileDoubleTapExecute(r ApiMobileDoubleTapRequest) (*InlineObject, *http.Response, error) {
 	var (
-		localVarHTTPMethod  = http.MethodPost
-		localVarPostBody    interface{}
-		formFiles           []formFile
-		localVarReturnValue *InlineObject
+		localVarHTTPMethod   = http.MethodPost
+		localVarPostBody     interface{}
+		formFiles            []formFile
+		localVarReturnValue  *InlineObject
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "MobileAPIService.MobileDoubleTap")
@@ -300,8 +300,8 @@ func (a *MobileAPIService) MobileDoubleTapExecute(r ApiMobileDoubleTapRequest) (
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode == 401 {
@@ -311,8 +311,8 @@ func (a *MobileAPIService) MobileDoubleTapExecute(r ApiMobileDoubleTapRequest) (
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode == 404 {
@@ -322,8 +322,8 @@ func (a *MobileAPIService) MobileDoubleTapExecute(r ApiMobileDoubleTapRequest) (
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode == 409 {
@@ -333,8 +333,8 @@ func (a *MobileAPIService) MobileDoubleTapExecute(r ApiMobileDoubleTapRequest) (
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode == 429 {
@@ -344,8 +344,8 @@ func (a *MobileAPIService) MobileDoubleTapExecute(r ApiMobileDoubleTapRequest) (
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode == 503 {
@@ -355,8 +355,8 @@ func (a *MobileAPIService) MobileDoubleTapExecute(r ApiMobileDoubleTapRequest) (
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode >= 500 {
@@ -366,8 +366,8 @@ func (a *MobileAPIService) MobileDoubleTapExecute(r ApiMobileDoubleTapRequest) (
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 		}
 		return localVarReturnValue, localVarHTTPResponse, newErr
 	}
@@ -385,9 +385,9 @@ func (a *MobileAPIService) MobileDoubleTapExecute(r ApiMobileDoubleTapRequest) (
 }
 
 type ApiMobileDragRequest struct {
-	ctx         context.Context
-	ApiService  *MobileAPIService
-	id          string
+	ctx context.Context
+	ApiService *MobileAPIService
+	id string
 	dragRequest *DragRequest
 }
 
@@ -403,27 +403,26 @@ func (r ApiMobileDragRequest) Execute() (*InlineObject, *http.Response, error) {
 /*
 MobileDrag Drag an object from (x1, y1) to (x2, y2).
 
-	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@param id
-	@return ApiMobileDragRequest
+ @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @param id
+ @return ApiMobileDragRequest
 */
 func (a *MobileAPIService) MobileDrag(ctx context.Context, id string) ApiMobileDragRequest {
 	return ApiMobileDragRequest{
 		ApiService: a,
-		ctx:        ctx,
-		id:         id,
+		ctx: ctx,
+		id: id,
 	}
 }
 
 // Execute executes the request
-//
-//	@return InlineObject
+//  @return InlineObject
 func (a *MobileAPIService) MobileDragExecute(r ApiMobileDragRequest) (*InlineObject, *http.Response, error) {
 	var (
-		localVarHTTPMethod  = http.MethodPost
-		localVarPostBody    interface{}
-		formFiles           []formFile
-		localVarReturnValue *InlineObject
+		localVarHTTPMethod   = http.MethodPost
+		localVarPostBody     interface{}
+		formFiles            []formFile
+		localVarReturnValue  *InlineObject
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "MobileAPIService.MobileDrag")
@@ -492,8 +491,8 @@ func (a *MobileAPIService) MobileDragExecute(r ApiMobileDragRequest) (*InlineObj
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode == 401 {
@@ -503,8 +502,8 @@ func (a *MobileAPIService) MobileDragExecute(r ApiMobileDragRequest) (*InlineObj
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode == 404 {
@@ -514,8 +513,8 @@ func (a *MobileAPIService) MobileDragExecute(r ApiMobileDragRequest) (*InlineObj
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode == 409 {
@@ -525,8 +524,8 @@ func (a *MobileAPIService) MobileDragExecute(r ApiMobileDragRequest) (*InlineObj
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode == 429 {
@@ -536,8 +535,8 @@ func (a *MobileAPIService) MobileDragExecute(r ApiMobileDragRequest) (*InlineObj
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode == 503 {
@@ -547,8 +546,8 @@ func (a *MobileAPIService) MobileDragExecute(r ApiMobileDragRequest) (*InlineObj
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode >= 500 {
@@ -558,8 +557,8 @@ func (a *MobileAPIService) MobileDragExecute(r ApiMobileDragRequest) (*InlineObj
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 		}
 		return localVarReturnValue, localVarHTTPResponse, newErr
 	}
@@ -577,11 +576,11 @@ func (a *MobileAPIService) MobileDragExecute(r ApiMobileDragRequest) (*InlineObj
 }
 
 type ApiMobileGetUiTreeRequest struct {
-	ctx        context.Context
+	ctx context.Context
 	ApiService *MobileAPIService
-	id         string
-	query      *string
-	format     *string
+	id string
+	query *string
+	format *string
 }
 
 func (r ApiMobileGetUiTreeRequest) Query(query string) ApiMobileGetUiTreeRequest {
@@ -601,27 +600,28 @@ func (r ApiMobileGetUiTreeRequest) Execute() (*MobileGetUiTree200Response, *http
 /*
 MobileGetUiTree Read the current Android UI hierarchy.
 
-	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@param id
-	@return ApiMobileGetUiTreeRequest
+Raw content follows the runtime's native format. Portal/BeeRunner returns accessibility JSON rather than ADB XML and does not support a nonempty query filter.
+
+ @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @param id
+ @return ApiMobileGetUiTreeRequest
 */
 func (a *MobileAPIService) MobileGetUiTree(ctx context.Context, id string) ApiMobileGetUiTreeRequest {
 	return ApiMobileGetUiTreeRequest{
 		ApiService: a,
-		ctx:        ctx,
-		id:         id,
+		ctx: ctx,
+		id: id,
 	}
 }
 
 // Execute executes the request
-//
-//	@return MobileGetUiTree200Response
+//  @return MobileGetUiTree200Response
 func (a *MobileAPIService) MobileGetUiTreeExecute(r ApiMobileGetUiTreeRequest) (*MobileGetUiTree200Response, *http.Response, error) {
 	var (
-		localVarHTTPMethod  = http.MethodGet
-		localVarPostBody    interface{}
-		formFiles           []formFile
-		localVarReturnValue *MobileGetUiTree200Response
+		localVarHTTPMethod   = http.MethodGet
+		localVarPostBody     interface{}
+		formFiles            []formFile
+		localVarReturnValue  *MobileGetUiTree200Response
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "MobileAPIService.MobileGetUiTree")
@@ -694,8 +694,8 @@ func (a *MobileAPIService) MobileGetUiTreeExecute(r ApiMobileGetUiTreeRequest) (
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode == 401 {
@@ -705,8 +705,8 @@ func (a *MobileAPIService) MobileGetUiTreeExecute(r ApiMobileGetUiTreeRequest) (
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode == 404 {
@@ -716,8 +716,8 @@ func (a *MobileAPIService) MobileGetUiTreeExecute(r ApiMobileGetUiTreeRequest) (
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode == 429 {
@@ -727,8 +727,8 @@ func (a *MobileAPIService) MobileGetUiTreeExecute(r ApiMobileGetUiTreeRequest) (
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode == 503 {
@@ -738,8 +738,8 @@ func (a *MobileAPIService) MobileGetUiTreeExecute(r ApiMobileGetUiTreeRequest) (
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode >= 500 {
@@ -749,8 +749,8 @@ func (a *MobileAPIService) MobileGetUiTreeExecute(r ApiMobileGetUiTreeRequest) (
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 		}
 		return localVarReturnValue, localVarHTTPResponse, newErr
 	}
@@ -768,9 +768,9 @@ func (a *MobileAPIService) MobileGetUiTreeExecute(r ApiMobileGetUiTreeRequest) (
 }
 
 type ApiMobileKeyRequest struct {
-	ctx        context.Context
+	ctx context.Context
 	ApiService *MobileAPIService
-	id         string
+	id string
 	keyRequest *KeyRequest
 }
 
@@ -786,27 +786,26 @@ func (r ApiMobileKeyRequest) Execute() (*InlineObject, *http.Response, error) {
 /*
 MobileKey Press an Android key (KeyCode name).
 
-	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@param id
-	@return ApiMobileKeyRequest
+ @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @param id
+ @return ApiMobileKeyRequest
 */
 func (a *MobileAPIService) MobileKey(ctx context.Context, id string) ApiMobileKeyRequest {
 	return ApiMobileKeyRequest{
 		ApiService: a,
-		ctx:        ctx,
-		id:         id,
+		ctx: ctx,
+		id: id,
 	}
 }
 
 // Execute executes the request
-//
-//	@return InlineObject
+//  @return InlineObject
 func (a *MobileAPIService) MobileKeyExecute(r ApiMobileKeyRequest) (*InlineObject, *http.Response, error) {
 	var (
-		localVarHTTPMethod  = http.MethodPost
-		localVarPostBody    interface{}
-		formFiles           []formFile
-		localVarReturnValue *InlineObject
+		localVarHTTPMethod   = http.MethodPost
+		localVarPostBody     interface{}
+		formFiles            []formFile
+		localVarReturnValue  *InlineObject
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "MobileAPIService.MobileKey")
@@ -875,8 +874,8 @@ func (a *MobileAPIService) MobileKeyExecute(r ApiMobileKeyRequest) (*InlineObjec
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode == 401 {
@@ -886,8 +885,8 @@ func (a *MobileAPIService) MobileKeyExecute(r ApiMobileKeyRequest) (*InlineObjec
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode == 404 {
@@ -897,8 +896,8 @@ func (a *MobileAPIService) MobileKeyExecute(r ApiMobileKeyRequest) (*InlineObjec
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode == 429 {
@@ -908,8 +907,8 @@ func (a *MobileAPIService) MobileKeyExecute(r ApiMobileKeyRequest) (*InlineObjec
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode == 503 {
@@ -919,8 +918,8 @@ func (a *MobileAPIService) MobileKeyExecute(r ApiMobileKeyRequest) (*InlineObjec
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode >= 500 {
@@ -930,8 +929,8 @@ func (a *MobileAPIService) MobileKeyExecute(r ApiMobileKeyRequest) (*InlineObjec
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 		}
 		return localVarReturnValue, localVarHTTPResponse, newErr
 	}
@@ -949,10 +948,10 @@ func (a *MobileAPIService) MobileKeyExecute(r ApiMobileKeyRequest) (*InlineObjec
 }
 
 type ApiMobileListAppsRequest struct {
-	ctx            context.Context
-	ApiService     *MobileAPIService
-	id             string
-	includeSystem  *bool
+	ctx context.Context
+	ApiService *MobileAPIService
+	id string
+	includeSystem *bool
 	launchableOnly *bool
 }
 
@@ -973,27 +972,28 @@ func (r ApiMobileListAppsRequest) Execute() (*MobileListApps200Response, *http.R
 /*
 MobileListApps List installed Android applications.
 
-	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@param id
-	@return ApiMobileListAppsRequest
+Portal/BeeRunner exposes launchable inventory only and requires launchable_only=true. Unsupported inventory scopes return action_unsupported instead of a silently partial result.
+
+ @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @param id
+ @return ApiMobileListAppsRequest
 */
 func (a *MobileAPIService) MobileListApps(ctx context.Context, id string) ApiMobileListAppsRequest {
 	return ApiMobileListAppsRequest{
 		ApiService: a,
-		ctx:        ctx,
-		id:         id,
+		ctx: ctx,
+		id: id,
 	}
 }
 
 // Execute executes the request
-//
-//	@return MobileListApps200Response
+//  @return MobileListApps200Response
 func (a *MobileAPIService) MobileListAppsExecute(r ApiMobileListAppsRequest) (*MobileListApps200Response, *http.Response, error) {
 	var (
-		localVarHTTPMethod  = http.MethodGet
-		localVarPostBody    interface{}
-		formFiles           []formFile
-		localVarReturnValue *MobileListApps200Response
+		localVarHTTPMethod   = http.MethodGet
+		localVarPostBody     interface{}
+		formFiles            []formFile
+		localVarReturnValue  *MobileListApps200Response
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "MobileAPIService.MobileListApps")
@@ -1069,8 +1069,8 @@ func (a *MobileAPIService) MobileListAppsExecute(r ApiMobileListAppsRequest) (*M
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode == 404 {
@@ -1080,8 +1080,8 @@ func (a *MobileAPIService) MobileListAppsExecute(r ApiMobileListAppsRequest) (*M
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode == 429 {
@@ -1091,8 +1091,8 @@ func (a *MobileAPIService) MobileListAppsExecute(r ApiMobileListAppsRequest) (*M
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode == 503 {
@@ -1102,8 +1102,8 @@ func (a *MobileAPIService) MobileListAppsExecute(r ApiMobileListAppsRequest) (*M
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode >= 500 {
@@ -1113,8 +1113,8 @@ func (a *MobileAPIService) MobileListAppsExecute(r ApiMobileListAppsRequest) (*M
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 		}
 		return localVarReturnValue, localVarHTTPResponse, newErr
 	}
@@ -1132,9 +1132,9 @@ func (a *MobileAPIService) MobileListAppsExecute(r ApiMobileListAppsRequest) (*M
 }
 
 type ApiMobileLongPressRequest struct {
-	ctx              context.Context
-	ApiService       *MobileAPIService
-	id               string
+	ctx context.Context
+	ApiService *MobileAPIService
+	id string
 	longPressRequest *LongPressRequest
 }
 
@@ -1150,27 +1150,26 @@ func (r ApiMobileLongPressRequest) Execute() (*InlineObject, *http.Response, err
 /*
 MobileLongPress Long-press at (x, y).
 
-	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@param id
-	@return ApiMobileLongPressRequest
+ @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @param id
+ @return ApiMobileLongPressRequest
 */
 func (a *MobileAPIService) MobileLongPress(ctx context.Context, id string) ApiMobileLongPressRequest {
 	return ApiMobileLongPressRequest{
 		ApiService: a,
-		ctx:        ctx,
-		id:         id,
+		ctx: ctx,
+		id: id,
 	}
 }
 
 // Execute executes the request
-//
-//	@return InlineObject
+//  @return InlineObject
 func (a *MobileAPIService) MobileLongPressExecute(r ApiMobileLongPressRequest) (*InlineObject, *http.Response, error) {
 	var (
-		localVarHTTPMethod  = http.MethodPost
-		localVarPostBody    interface{}
-		formFiles           []formFile
-		localVarReturnValue *InlineObject
+		localVarHTTPMethod   = http.MethodPost
+		localVarPostBody     interface{}
+		formFiles            []formFile
+		localVarReturnValue  *InlineObject
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "MobileAPIService.MobileLongPress")
@@ -1239,8 +1238,8 @@ func (a *MobileAPIService) MobileLongPressExecute(r ApiMobileLongPressRequest) (
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode == 401 {
@@ -1250,8 +1249,8 @@ func (a *MobileAPIService) MobileLongPressExecute(r ApiMobileLongPressRequest) (
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode == 404 {
@@ -1261,8 +1260,8 @@ func (a *MobileAPIService) MobileLongPressExecute(r ApiMobileLongPressRequest) (
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode == 409 {
@@ -1272,8 +1271,8 @@ func (a *MobileAPIService) MobileLongPressExecute(r ApiMobileLongPressRequest) (
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode == 429 {
@@ -1283,8 +1282,8 @@ func (a *MobileAPIService) MobileLongPressExecute(r ApiMobileLongPressRequest) (
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode == 503 {
@@ -1294,8 +1293,8 @@ func (a *MobileAPIService) MobileLongPressExecute(r ApiMobileLongPressRequest) (
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode >= 500 {
@@ -1305,8 +1304,8 @@ func (a *MobileAPIService) MobileLongPressExecute(r ApiMobileLongPressRequest) (
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 		}
 		return localVarReturnValue, localVarHTTPResponse, newErr
 	}
@@ -1324,9 +1323,9 @@ func (a *MobileAPIService) MobileLongPressExecute(r ApiMobileLongPressRequest) (
 }
 
 type ApiMobileOpenAppRequest struct {
-	ctx            context.Context
-	ApiService     *MobileAPIService
-	id             string
+	ctx context.Context
+	ApiService *MobileAPIService
+	id string
 	openAppRequest *OpenAppRequest
 }
 
@@ -1342,27 +1341,28 @@ func (r ApiMobileOpenAppRequest) Execute() (*InlineObject, *http.Response, error
 /*
 MobileOpenApp Open an installed app by package id or display name.
 
-	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@param id
-	@return ApiMobileOpenAppRequest
+Runtime options vary. Portal/BeeRunner supports package or display-name launch and explicit activity, but rejects a nonempty locale override with action_unsupported.
+
+ @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @param id
+ @return ApiMobileOpenAppRequest
 */
 func (a *MobileAPIService) MobileOpenApp(ctx context.Context, id string) ApiMobileOpenAppRequest {
 	return ApiMobileOpenAppRequest{
 		ApiService: a,
-		ctx:        ctx,
-		id:         id,
+		ctx: ctx,
+		id: id,
 	}
 }
 
 // Execute executes the request
-//
-//	@return InlineObject
+//  @return InlineObject
 func (a *MobileAPIService) MobileOpenAppExecute(r ApiMobileOpenAppRequest) (*InlineObject, *http.Response, error) {
 	var (
-		localVarHTTPMethod  = http.MethodPost
-		localVarPostBody    interface{}
-		formFiles           []formFile
-		localVarReturnValue *InlineObject
+		localVarHTTPMethod   = http.MethodPost
+		localVarPostBody     interface{}
+		formFiles            []formFile
+		localVarReturnValue  *InlineObject
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "MobileAPIService.MobileOpenApp")
@@ -1431,8 +1431,8 @@ func (a *MobileAPIService) MobileOpenAppExecute(r ApiMobileOpenAppRequest) (*Inl
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode == 401 {
@@ -1442,8 +1442,8 @@ func (a *MobileAPIService) MobileOpenAppExecute(r ApiMobileOpenAppRequest) (*Inl
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode == 404 {
@@ -1453,8 +1453,8 @@ func (a *MobileAPIService) MobileOpenAppExecute(r ApiMobileOpenAppRequest) (*Inl
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode == 409 {
@@ -1464,8 +1464,8 @@ func (a *MobileAPIService) MobileOpenAppExecute(r ApiMobileOpenAppRequest) (*Inl
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode == 429 {
@@ -1475,8 +1475,8 @@ func (a *MobileAPIService) MobileOpenAppExecute(r ApiMobileOpenAppRequest) (*Inl
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode == 503 {
@@ -1486,8 +1486,8 @@ func (a *MobileAPIService) MobileOpenAppExecute(r ApiMobileOpenAppRequest) (*Inl
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode >= 500 {
@@ -1497,8 +1497,8 @@ func (a *MobileAPIService) MobileOpenAppExecute(r ApiMobileOpenAppRequest) (*Inl
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 		}
 		return localVarReturnValue, localVarHTTPResponse, newErr
 	}
@@ -1516,9 +1516,9 @@ func (a *MobileAPIService) MobileOpenAppExecute(r ApiMobileOpenAppRequest) (*Inl
 }
 
 type ApiMobilePressButtonRequest struct {
-	ctx                context.Context
-	ApiService         *MobileAPIService
-	id                 string
+	ctx context.Context
+	ApiService *MobileAPIService
+	id string
 	pressButtonRequest *PressButtonRequest
 }
 
@@ -1534,27 +1534,26 @@ func (r ApiMobilePressButtonRequest) Execute() (*InlineObject, *http.Response, e
 /*
 MobilePressButton Press a hardware / navigation button (back / home / ...).
 
-	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@param id
-	@return ApiMobilePressButtonRequest
+ @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @param id
+ @return ApiMobilePressButtonRequest
 */
 func (a *MobileAPIService) MobilePressButton(ctx context.Context, id string) ApiMobilePressButtonRequest {
 	return ApiMobilePressButtonRequest{
 		ApiService: a,
-		ctx:        ctx,
-		id:         id,
+		ctx: ctx,
+		id: id,
 	}
 }
 
 // Execute executes the request
-//
-//	@return InlineObject
+//  @return InlineObject
 func (a *MobileAPIService) MobilePressButtonExecute(r ApiMobilePressButtonRequest) (*InlineObject, *http.Response, error) {
 	var (
-		localVarHTTPMethod  = http.MethodPost
-		localVarPostBody    interface{}
-		formFiles           []formFile
-		localVarReturnValue *InlineObject
+		localVarHTTPMethod   = http.MethodPost
+		localVarPostBody     interface{}
+		formFiles            []formFile
+		localVarReturnValue  *InlineObject
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "MobileAPIService.MobilePressButton")
@@ -1623,8 +1622,8 @@ func (a *MobileAPIService) MobilePressButtonExecute(r ApiMobilePressButtonReques
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode == 401 {
@@ -1634,8 +1633,8 @@ func (a *MobileAPIService) MobilePressButtonExecute(r ApiMobilePressButtonReques
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode == 404 {
@@ -1645,8 +1644,8 @@ func (a *MobileAPIService) MobilePressButtonExecute(r ApiMobilePressButtonReques
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode == 429 {
@@ -1656,8 +1655,8 @@ func (a *MobileAPIService) MobilePressButtonExecute(r ApiMobilePressButtonReques
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode == 503 {
@@ -1667,8 +1666,8 @@ func (a *MobileAPIService) MobilePressButtonExecute(r ApiMobilePressButtonReques
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode >= 500 {
@@ -1678,8 +1677,8 @@ func (a *MobileAPIService) MobilePressButtonExecute(r ApiMobilePressButtonReques
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 		}
 		return localVarReturnValue, localVarHTTPResponse, newErr
 	}
@@ -1697,9 +1696,9 @@ func (a *MobileAPIService) MobilePressButtonExecute(r ApiMobilePressButtonReques
 }
 
 type ApiMobileScreenshotRequest struct {
-	ctx        context.Context
+	ctx context.Context
 	ApiService *MobileAPIService
-	id         string
+	id string
 }
 
 func (r ApiMobileScreenshotRequest) Execute() (*ComputerScreenshot200Response, *http.Response, error) {
@@ -1709,27 +1708,26 @@ func (r ApiMobileScreenshotRequest) Execute() (*ComputerScreenshot200Response, *
 /*
 MobileScreenshot Capture a mobile screenshot (returns a file reference).
 
-	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@param id
-	@return ApiMobileScreenshotRequest
+ @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @param id
+ @return ApiMobileScreenshotRequest
 */
 func (a *MobileAPIService) MobileScreenshot(ctx context.Context, id string) ApiMobileScreenshotRequest {
 	return ApiMobileScreenshotRequest{
 		ApiService: a,
-		ctx:        ctx,
-		id:         id,
+		ctx: ctx,
+		id: id,
 	}
 }
 
 // Execute executes the request
-//
-//	@return ComputerScreenshot200Response
+//  @return ComputerScreenshot200Response
 func (a *MobileAPIService) MobileScreenshotExecute(r ApiMobileScreenshotRequest) (*ComputerScreenshot200Response, *http.Response, error) {
 	var (
-		localVarHTTPMethod  = http.MethodPost
-		localVarPostBody    interface{}
-		formFiles           []formFile
-		localVarReturnValue *ComputerScreenshot200Response
+		localVarHTTPMethod   = http.MethodPost
+		localVarPostBody     interface{}
+		formFiles            []formFile
+		localVarReturnValue  *ComputerScreenshot200Response
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "MobileAPIService.MobileScreenshot")
@@ -1793,8 +1791,8 @@ func (a *MobileAPIService) MobileScreenshotExecute(r ApiMobileScreenshotRequest)
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode == 404 {
@@ -1804,8 +1802,8 @@ func (a *MobileAPIService) MobileScreenshotExecute(r ApiMobileScreenshotRequest)
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode == 409 {
@@ -1815,8 +1813,8 @@ func (a *MobileAPIService) MobileScreenshotExecute(r ApiMobileScreenshotRequest)
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode == 429 {
@@ -1826,8 +1824,8 @@ func (a *MobileAPIService) MobileScreenshotExecute(r ApiMobileScreenshotRequest)
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode == 503 {
@@ -1837,8 +1835,8 @@ func (a *MobileAPIService) MobileScreenshotExecute(r ApiMobileScreenshotRequest)
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode == 504 {
@@ -1848,8 +1846,8 @@ func (a *MobileAPIService) MobileScreenshotExecute(r ApiMobileScreenshotRequest)
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode >= 500 {
@@ -1859,8 +1857,8 @@ func (a *MobileAPIService) MobileScreenshotExecute(r ApiMobileScreenshotRequest)
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 		}
 		return localVarReturnValue, localVarHTTPResponse, newErr
 	}
@@ -1878,9 +1876,9 @@ func (a *MobileAPIService) MobileScreenshotExecute(r ApiMobileScreenshotRequest)
 }
 
 type ApiMobileScrollRequest struct {
-	ctx           context.Context
-	ApiService    *MobileAPIService
-	id            string
+	ctx context.Context
+	ApiService *MobileAPIService
+	id string
 	scrollRequest *ScrollRequest
 }
 
@@ -1896,27 +1894,26 @@ func (r ApiMobileScrollRequest) Execute() (*InlineObject, *http.Response, error)
 /*
 MobileScroll Scroll in a cardinal direction.
 
-	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@param id
-	@return ApiMobileScrollRequest
+ @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @param id
+ @return ApiMobileScrollRequest
 */
 func (a *MobileAPIService) MobileScroll(ctx context.Context, id string) ApiMobileScrollRequest {
 	return ApiMobileScrollRequest{
 		ApiService: a,
-		ctx:        ctx,
-		id:         id,
+		ctx: ctx,
+		id: id,
 	}
 }
 
 // Execute executes the request
-//
-//	@return InlineObject
+//  @return InlineObject
 func (a *MobileAPIService) MobileScrollExecute(r ApiMobileScrollRequest) (*InlineObject, *http.Response, error) {
 	var (
-		localVarHTTPMethod  = http.MethodPost
-		localVarPostBody    interface{}
-		formFiles           []formFile
-		localVarReturnValue *InlineObject
+		localVarHTTPMethod   = http.MethodPost
+		localVarPostBody     interface{}
+		formFiles            []formFile
+		localVarReturnValue  *InlineObject
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "MobileAPIService.MobileScroll")
@@ -1985,8 +1982,8 @@ func (a *MobileAPIService) MobileScrollExecute(r ApiMobileScrollRequest) (*Inlin
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode == 401 {
@@ -1996,8 +1993,8 @@ func (a *MobileAPIService) MobileScrollExecute(r ApiMobileScrollRequest) (*Inlin
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode == 404 {
@@ -2007,8 +2004,8 @@ func (a *MobileAPIService) MobileScrollExecute(r ApiMobileScrollRequest) (*Inlin
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode == 429 {
@@ -2018,8 +2015,8 @@ func (a *MobileAPIService) MobileScrollExecute(r ApiMobileScrollRequest) (*Inlin
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode == 503 {
@@ -2029,8 +2026,8 @@ func (a *MobileAPIService) MobileScrollExecute(r ApiMobileScrollRequest) (*Inlin
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode >= 500 {
@@ -2040,8 +2037,8 @@ func (a *MobileAPIService) MobileScrollExecute(r ApiMobileScrollRequest) (*Inlin
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 		}
 		return localVarReturnValue, localVarHTTPResponse, newErr
 	}
@@ -2059,9 +2056,9 @@ func (a *MobileAPIService) MobileScrollExecute(r ApiMobileScrollRequest) (*Inlin
 }
 
 type ApiMobileSwipeRequest struct {
-	ctx          context.Context
-	ApiService   *MobileAPIService
-	id           string
+	ctx context.Context
+	ApiService *MobileAPIService
+	id string
 	swipeRequest *SwipeRequest
 }
 
@@ -2077,27 +2074,26 @@ func (r ApiMobileSwipeRequest) Execute() (*InlineObject, *http.Response, error) 
 /*
 MobileSwipe Swipe from (x1, y1) to (x2, y2).
 
-	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@param id
-	@return ApiMobileSwipeRequest
+ @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @param id
+ @return ApiMobileSwipeRequest
 */
 func (a *MobileAPIService) MobileSwipe(ctx context.Context, id string) ApiMobileSwipeRequest {
 	return ApiMobileSwipeRequest{
 		ApiService: a,
-		ctx:        ctx,
-		id:         id,
+		ctx: ctx,
+		id: id,
 	}
 }
 
 // Execute executes the request
-//
-//	@return InlineObject
+//  @return InlineObject
 func (a *MobileAPIService) MobileSwipeExecute(r ApiMobileSwipeRequest) (*InlineObject, *http.Response, error) {
 	var (
-		localVarHTTPMethod  = http.MethodPost
-		localVarPostBody    interface{}
-		formFiles           []formFile
-		localVarReturnValue *InlineObject
+		localVarHTTPMethod   = http.MethodPost
+		localVarPostBody     interface{}
+		formFiles            []formFile
+		localVarReturnValue  *InlineObject
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "MobileAPIService.MobileSwipe")
@@ -2166,8 +2162,8 @@ func (a *MobileAPIService) MobileSwipeExecute(r ApiMobileSwipeRequest) (*InlineO
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode == 401 {
@@ -2177,8 +2173,8 @@ func (a *MobileAPIService) MobileSwipeExecute(r ApiMobileSwipeRequest) (*InlineO
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode == 404 {
@@ -2188,8 +2184,8 @@ func (a *MobileAPIService) MobileSwipeExecute(r ApiMobileSwipeRequest) (*InlineO
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode == 429 {
@@ -2199,8 +2195,8 @@ func (a *MobileAPIService) MobileSwipeExecute(r ApiMobileSwipeRequest) (*InlineO
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode == 503 {
@@ -2210,8 +2206,8 @@ func (a *MobileAPIService) MobileSwipeExecute(r ApiMobileSwipeRequest) (*InlineO
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode >= 500 {
@@ -2221,8 +2217,8 @@ func (a *MobileAPIService) MobileSwipeExecute(r ApiMobileSwipeRequest) (*InlineO
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 		}
 		return localVarReturnValue, localVarHTTPResponse, newErr
 	}
@@ -2240,9 +2236,9 @@ func (a *MobileAPIService) MobileSwipeExecute(r ApiMobileSwipeRequest) (*InlineO
 }
 
 type ApiMobileTapRequest struct {
-	ctx        context.Context
+	ctx context.Context
 	ApiService *MobileAPIService
-	id         string
+	id string
 	tapRequest *TapRequest
 }
 
@@ -2258,27 +2254,26 @@ func (r ApiMobileTapRequest) Execute() (*InlineObject, *http.Response, error) {
 /*
 MobileTap Tap at (x, y).
 
-	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@param id
-	@return ApiMobileTapRequest
+ @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @param id
+ @return ApiMobileTapRequest
 */
 func (a *MobileAPIService) MobileTap(ctx context.Context, id string) ApiMobileTapRequest {
 	return ApiMobileTapRequest{
 		ApiService: a,
-		ctx:        ctx,
-		id:         id,
+		ctx: ctx,
+		id: id,
 	}
 }
 
 // Execute executes the request
-//
-//	@return InlineObject
+//  @return InlineObject
 func (a *MobileAPIService) MobileTapExecute(r ApiMobileTapRequest) (*InlineObject, *http.Response, error) {
 	var (
-		localVarHTTPMethod  = http.MethodPost
-		localVarPostBody    interface{}
-		formFiles           []formFile
-		localVarReturnValue *InlineObject
+		localVarHTTPMethod   = http.MethodPost
+		localVarPostBody     interface{}
+		formFiles            []formFile
+		localVarReturnValue  *InlineObject
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "MobileAPIService.MobileTap")
@@ -2347,8 +2342,8 @@ func (a *MobileAPIService) MobileTapExecute(r ApiMobileTapRequest) (*InlineObjec
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode == 401 {
@@ -2358,8 +2353,8 @@ func (a *MobileAPIService) MobileTapExecute(r ApiMobileTapRequest) (*InlineObjec
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode == 404 {
@@ -2369,8 +2364,8 @@ func (a *MobileAPIService) MobileTapExecute(r ApiMobileTapRequest) (*InlineObjec
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode == 409 {
@@ -2380,8 +2375,8 @@ func (a *MobileAPIService) MobileTapExecute(r ApiMobileTapRequest) (*InlineObjec
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode == 429 {
@@ -2391,8 +2386,8 @@ func (a *MobileAPIService) MobileTapExecute(r ApiMobileTapRequest) (*InlineObjec
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode == 503 {
@@ -2402,8 +2397,8 @@ func (a *MobileAPIService) MobileTapExecute(r ApiMobileTapRequest) (*InlineObjec
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode >= 500 {
@@ -2413,8 +2408,8 @@ func (a *MobileAPIService) MobileTapExecute(r ApiMobileTapRequest) (*InlineObjec
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 		}
 		return localVarReturnValue, localVarHTTPResponse, newErr
 	}
@@ -2432,9 +2427,9 @@ func (a *MobileAPIService) MobileTapExecute(r ApiMobileTapRequest) (*InlineObjec
 }
 
 type ApiMobileTypeRequest struct {
-	ctx         context.Context
-	ApiService  *MobileAPIService
-	id          string
+	ctx context.Context
+	ApiService *MobileAPIService
+	id string
 	typeRequest *TypeRequest
 }
 
@@ -2450,27 +2445,26 @@ func (r ApiMobileTypeRequest) Execute() (*InlineObject, *http.Response, error) {
 /*
 MobileType Type Unicode text into the focused field.
 
-	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@param id
-	@return ApiMobileTypeRequest
+ @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @param id
+ @return ApiMobileTypeRequest
 */
 func (a *MobileAPIService) MobileType(ctx context.Context, id string) ApiMobileTypeRequest {
 	return ApiMobileTypeRequest{
 		ApiService: a,
-		ctx:        ctx,
-		id:         id,
+		ctx: ctx,
+		id: id,
 	}
 }
 
 // Execute executes the request
-//
-//	@return InlineObject
+//  @return InlineObject
 func (a *MobileAPIService) MobileTypeExecute(r ApiMobileTypeRequest) (*InlineObject, *http.Response, error) {
 	var (
-		localVarHTTPMethod  = http.MethodPost
-		localVarPostBody    interface{}
-		formFiles           []formFile
-		localVarReturnValue *InlineObject
+		localVarHTTPMethod   = http.MethodPost
+		localVarPostBody     interface{}
+		formFiles            []formFile
+		localVarReturnValue  *InlineObject
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "MobileAPIService.MobileType")
@@ -2539,8 +2533,8 @@ func (a *MobileAPIService) MobileTypeExecute(r ApiMobileTypeRequest) (*InlineObj
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode == 401 {
@@ -2550,8 +2544,8 @@ func (a *MobileAPIService) MobileTypeExecute(r ApiMobileTypeRequest) (*InlineObj
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode == 404 {
@@ -2561,8 +2555,8 @@ func (a *MobileAPIService) MobileTypeExecute(r ApiMobileTypeRequest) (*InlineObj
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode == 429 {
@@ -2572,8 +2566,8 @@ func (a *MobileAPIService) MobileTypeExecute(r ApiMobileTypeRequest) (*InlineObj
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode == 503 {
@@ -2583,8 +2577,8 @@ func (a *MobileAPIService) MobileTypeExecute(r ApiMobileTypeRequest) (*InlineObj
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode >= 500 {
@@ -2594,8 +2588,8 @@ func (a *MobileAPIService) MobileTypeExecute(r ApiMobileTypeRequest) (*InlineObj
 				newErr.error = err.Error()
 				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
-			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-			newErr.model = v
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
 		}
 		return localVarReturnValue, localVarHTTPResponse, newErr
 	}

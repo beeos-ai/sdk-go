@@ -4,7 +4,7 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**Apps** | [**[]AppInfo**](AppInfo.md) |  |
+**Apps** | [**[]AppInfo**](AppInfo.md) |  | 
 
 ## Methods
 

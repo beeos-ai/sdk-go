@@ -4,9 +4,9 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**X** | **int32** |  |
-**Y** | **int32** |  |
-**DurationMs** | Pointer to **int32** | Hold duration; clamped device-side to [1, 10000]. | [optional]
+**X** | **int32** |  | 
+**Y** | **int32** |  | 
+**DurationMs** | Pointer to **int32** | Hold duration; clamped device-side to [1, 10000]. | [optional] 
 
 ## Methods
 

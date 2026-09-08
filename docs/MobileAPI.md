@@ -42,7 +42,7 @@ import (
 )
 
 func main() {
-	id := "id_example" // string |
+	id := "id_example" // string | 
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
@@ -62,7 +62,7 @@ func main() {
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 **ctx** | **context.Context** | context for authentication, logging, cancellation, deadlines, tracing, etc.
-**id** | **string** |  |
+**id** | **string** |  | 
 
 ### Other Parameters
 
@@ -110,8 +110,8 @@ import (
 )
 
 func main() {
-	id := "id_example" // string |
-	tapRequest := *openapiclient.NewTapRequest(int32(123), int32(123)) // TapRequest |
+	id := "id_example" // string | 
+	tapRequest := *openapiclient.NewTapRequest(int32(123), int32(123)) // TapRequest | 
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
@@ -131,7 +131,7 @@ func main() {
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 **ctx** | **context.Context** | context for authentication, logging, cancellation, deadlines, tracing, etc.
-**id** | **string** |  |
+**id** | **string** |  | 
 
 ### Other Parameters
 
@@ -141,7 +141,7 @@ Other parameters are passed through a pointer to a apiMobileDoubleTapRequest str
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 
- **tapRequest** | [**TapRequest**](TapRequest.md) |  |
+ **tapRequest** | [**TapRequest**](TapRequest.md) |  | 
 
 ### Return type
 
@@ -180,8 +180,8 @@ import (
 )
 
 func main() {
-	id := "id_example" // string |
-	dragRequest := *openapiclient.NewDragRequest(int32(123), int32(123), int32(123), int32(123)) // DragRequest |
+	id := "id_example" // string | 
+	dragRequest := *openapiclient.NewDragRequest(int32(123), int32(123), int32(123), int32(123)) // DragRequest | 
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
@@ -201,7 +201,7 @@ func main() {
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 **ctx** | **context.Context** | context for authentication, logging, cancellation, deadlines, tracing, etc.
-**id** | **string** |  |
+**id** | **string** |  | 
 
 ### Other Parameters
 
@@ -211,7 +211,7 @@ Other parameters are passed through a pointer to a apiMobileDragRequest struct v
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 
- **dragRequest** | [**DragRequest**](DragRequest.md) |  |
+ **dragRequest** | [**DragRequest**](DragRequest.md) |  | 
 
 ### Return type
 
@@ -237,6 +237,8 @@ Name | Type | Description  | Notes
 
 Read the current Android UI hierarchy.
 
+
+
 ### Example
 
 ```go
@@ -250,7 +252,7 @@ import (
 )
 
 func main() {
-	id := "id_example" // string |
+	id := "id_example" // string | 
 	query := "query_example" // string |  (optional)
 	format := "format_example" // string |  (optional) (default to "compact")
 
@@ -272,7 +274,7 @@ func main() {
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 **ctx** | **context.Context** | context for authentication, logging, cancellation, deadlines, tracing, etc.
-**id** | **string** |  |
+**id** | **string** |  | 
 
 ### Other Parameters
 
@@ -282,7 +284,7 @@ Other parameters are passed through a pointer to a apiMobileGetUiTreeRequest str
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 
- **query** | **string** |  |
+ **query** | **string** |  | 
  **format** | **string** |  | [default to &quot;compact&quot;]
 
 ### Return type
@@ -322,8 +324,8 @@ import (
 )
 
 func main() {
-	id := "id_example" // string |
-	keyRequest := *openapiclient.NewKeyRequest([]string{"Keys_example"}) // KeyRequest |
+	id := "id_example" // string | 
+	keyRequest := *openapiclient.NewKeyRequest([]string{"Keys_example"}) // KeyRequest | 
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
@@ -343,7 +345,7 @@ func main() {
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 **ctx** | **context.Context** | context for authentication, logging, cancellation, deadlines, tracing, etc.
-**id** | **string** |  |
+**id** | **string** |  | 
 
 ### Other Parameters
 
@@ -353,7 +355,7 @@ Other parameters are passed through a pointer to a apiMobileKeyRequest struct vi
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 
- **keyRequest** | [**KeyRequest**](KeyRequest.md) |  |
+ **keyRequest** | [**KeyRequest**](KeyRequest.md) |  | 
 
 ### Return type
 
@@ -379,6 +381,8 @@ Name | Type | Description  | Notes
 
 List installed Android applications.
 
+
+
 ### Example
 
 ```go
@@ -392,7 +396,7 @@ import (
 )
 
 func main() {
-	id := "id_example" // string |
+	id := "id_example" // string | 
 	includeSystem := true // bool |  (optional) (default to false)
 	launchableOnly := true // bool |  (optional) (default to false)
 
@@ -414,7 +418,7 @@ func main() {
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 **ctx** | **context.Context** | context for authentication, logging, cancellation, deadlines, tracing, etc.
-**id** | **string** |  |
+**id** | **string** |  | 
 
 ### Other Parameters
 
@@ -464,8 +468,8 @@ import (
 )
 
 func main() {
-	id := "id_example" // string |
-	longPressRequest := *openapiclient.NewLongPressRequest(int32(123), int32(123)) // LongPressRequest |
+	id := "id_example" // string | 
+	longPressRequest := *openapiclient.NewLongPressRequest(int32(123), int32(123)) // LongPressRequest | 
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
@@ -485,7 +489,7 @@ func main() {
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 **ctx** | **context.Context** | context for authentication, logging, cancellation, deadlines, tracing, etc.
-**id** | **string** |  |
+**id** | **string** |  | 
 
 ### Other Parameters
 
@@ -495,7 +499,7 @@ Other parameters are passed through a pointer to a apiMobileLongPressRequest str
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 
- **longPressRequest** | [**LongPressRequest**](LongPressRequest.md) |  |
+ **longPressRequest** | [**LongPressRequest**](LongPressRequest.md) |  | 
 
 ### Return type
 
@@ -521,6 +525,8 @@ Name | Type | Description  | Notes
 
 Open an installed app by package id or display name.
 
+
+
 ### Example
 
 ```go
@@ -534,8 +540,8 @@ import (
 )
 
 func main() {
-	id := "id_example" // string |
-	openAppRequest := *openapiclient.NewOpenAppRequest("App_example") // OpenAppRequest |
+	id := "id_example" // string | 
+	openAppRequest := *openapiclient.NewOpenAppRequest("App_example") // OpenAppRequest | 
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
@@ -555,7 +561,7 @@ func main() {
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 **ctx** | **context.Context** | context for authentication, logging, cancellation, deadlines, tracing, etc.
-**id** | **string** |  |
+**id** | **string** |  | 
 
 ### Other Parameters
 
@@ -565,7 +571,7 @@ Other parameters are passed through a pointer to a apiMobileOpenAppRequest struc
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 
- **openAppRequest** | [**OpenAppRequest**](OpenAppRequest.md) |  |
+ **openAppRequest** | [**OpenAppRequest**](OpenAppRequest.md) |  | 
 
 ### Return type
 
@@ -604,8 +610,8 @@ import (
 )
 
 func main() {
-	id := "id_example" // string |
-	pressButtonRequest := *openapiclient.NewPressButtonRequest("Button_example") // PressButtonRequest |
+	id := "id_example" // string | 
+	pressButtonRequest := *openapiclient.NewPressButtonRequest("Button_example") // PressButtonRequest | 
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
@@ -625,7 +631,7 @@ func main() {
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 **ctx** | **context.Context** | context for authentication, logging, cancellation, deadlines, tracing, etc.
-**id** | **string** |  |
+**id** | **string** |  | 
 
 ### Other Parameters
 
@@ -635,7 +641,7 @@ Other parameters are passed through a pointer to a apiMobilePressButtonRequest s
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 
- **pressButtonRequest** | [**PressButtonRequest**](PressButtonRequest.md) |  |
+ **pressButtonRequest** | [**PressButtonRequest**](PressButtonRequest.md) |  | 
 
 ### Return type
 
@@ -674,7 +680,7 @@ import (
 )
 
 func main() {
-	id := "id_example" // string |
+	id := "id_example" // string | 
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
@@ -694,7 +700,7 @@ func main() {
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 **ctx** | **context.Context** | context for authentication, logging, cancellation, deadlines, tracing, etc.
-**id** | **string** |  |
+**id** | **string** |  | 
 
 ### Other Parameters
 
@@ -742,8 +748,8 @@ import (
 )
 
 func main() {
-	id := "id_example" // string |
-	scrollRequest := *openapiclient.NewScrollRequest("Direction_example") // ScrollRequest |
+	id := "id_example" // string | 
+	scrollRequest := *openapiclient.NewScrollRequest("Direction_example") // ScrollRequest | 
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
@@ -763,7 +769,7 @@ func main() {
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 **ctx** | **context.Context** | context for authentication, logging, cancellation, deadlines, tracing, etc.
-**id** | **string** |  |
+**id** | **string** |  | 
 
 ### Other Parameters
 
@@ -773,7 +779,7 @@ Other parameters are passed through a pointer to a apiMobileScrollRequest struct
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 
- **scrollRequest** | [**ScrollRequest**](ScrollRequest.md) |  |
+ **scrollRequest** | [**ScrollRequest**](ScrollRequest.md) |  | 
 
 ### Return type
 
@@ -812,8 +818,8 @@ import (
 )
 
 func main() {
-	id := "id_example" // string |
-	swipeRequest := *openapiclient.NewSwipeRequest(int32(123), int32(123), int32(123), int32(123)) // SwipeRequest |
+	id := "id_example" // string | 
+	swipeRequest := *openapiclient.NewSwipeRequest(int32(123), int32(123), int32(123), int32(123)) // SwipeRequest | 
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
@@ -833,7 +839,7 @@ func main() {
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 **ctx** | **context.Context** | context for authentication, logging, cancellation, deadlines, tracing, etc.
-**id** | **string** |  |
+**id** | **string** |  | 
 
 ### Other Parameters
 
@@ -843,7 +849,7 @@ Other parameters are passed through a pointer to a apiMobileSwipeRequest struct 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 
- **swipeRequest** | [**SwipeRequest**](SwipeRequest.md) |  |
+ **swipeRequest** | [**SwipeRequest**](SwipeRequest.md) |  | 
 
 ### Return type
 
@@ -882,8 +888,8 @@ import (
 )
 
 func main() {
-	id := "id_example" // string |
-	tapRequest := *openapiclient.NewTapRequest(int32(123), int32(123)) // TapRequest |
+	id := "id_example" // string | 
+	tapRequest := *openapiclient.NewTapRequest(int32(123), int32(123)) // TapRequest | 
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
@@ -903,7 +909,7 @@ func main() {
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 **ctx** | **context.Context** | context for authentication, logging, cancellation, deadlines, tracing, etc.
-**id** | **string** |  |
+**id** | **string** |  | 
 
 ### Other Parameters
 
@@ -913,7 +919,7 @@ Other parameters are passed through a pointer to a apiMobileTapRequest struct vi
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 
- **tapRequest** | [**TapRequest**](TapRequest.md) |  |
+ **tapRequest** | [**TapRequest**](TapRequest.md) |  | 
 
 ### Return type
 
@@ -952,8 +958,8 @@ import (
 )
 
 func main() {
-	id := "id_example" // string |
-	typeRequest := *openapiclient.NewTypeRequest("Text_example") // TypeRequest |
+	id := "id_example" // string | 
+	typeRequest := *openapiclient.NewTypeRequest("Text_example") // TypeRequest | 
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
@@ -973,7 +979,7 @@ func main() {
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 **ctx** | **context.Context** | context for authentication, logging, cancellation, deadlines, tracing, etc.
-**id** | **string** |  |
+**id** | **string** |  | 
 
 ### Other Parameters
 
@@ -983,7 +989,7 @@ Other parameters are passed through a pointer to a apiMobileTypeRequest struct v
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 
- **typeRequest** | [**TypeRequest**](TypeRequest.md) |  |
+ **typeRequest** | [**TypeRequest**](TypeRequest.md) |  | 
 
 ### Return type
 

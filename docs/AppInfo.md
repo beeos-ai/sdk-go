@@ -4,8 +4,8 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**PackageId** | **string** |  |
-**Label** | Pointer to **string** |  | [optional]
+**PackageId** | **string** |  | 
+**Label** | Pointer to **string** |  | [optional] 
 
 ## Methods
 

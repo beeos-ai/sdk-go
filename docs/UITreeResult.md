@@ -4,8 +4,8 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**Supported** | **bool** |  |
-**Content** | **string** |  |
+**Supported** | **bool** |  | 
+**Content** | **string** |  | 
 
 ## Methods
 

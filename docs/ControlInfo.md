@@ -9,7 +9,7 @@ Name | Type | Description | Notes
 **ScreenWidth** | **int32** | Current screen width in device pixels. | 
 **ScreenHeight** | **int32** | Current screen height in device pixels. | 
 **CoordinateSystem** | **string** | Always &#x60;absolute_pixels&#x60; (origin top-left). | 
-**SupportedActions** | **[]string** | Action verbs this device supports (e.g. &#x60;screenshot&#x60;, &#x60;tap&#x60;). | 
+**SupportedActions** | **[]string** | Public action verbs confirmed by the runtime&#39;s exact tool list (e.g. &#x60;screenshot&#x60;, &#x60;tap&#x60;). Empty when offline or when an older runtime does not report that list; not inferred from OS alone.  | 
 **CurrentApp** | Pointer to **string** | Foreground app / window, when known. | [optional] 
 
 ## Methods

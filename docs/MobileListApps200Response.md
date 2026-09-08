@@ -4,8 +4,8 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**Success** | **bool** |  |
-**Data** | Pointer to [**AppListResult**](AppListResult.md) |  | [optional]
+**Success** | **bool** |  | 
+**Data** | Pointer to [**AppListResult**](AppListResult.md) |  | [optional] 
 
 ## Methods
 
