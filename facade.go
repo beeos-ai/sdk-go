@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"mime"
 	"net/http"
 	"net/url"
 	"os"
@@ -15,10 +16,12 @@ import (
 
 // Client is the stable convenience facade. API exposes the full generated client.
 type Client struct {
-	API     *APIClient
-	apiKey  string
-	baseURL string
-	http    *http.Client
+	API       *APIClient
+	Instances *InstancesResource
+	Files     *FilesResource
+	apiKey    string
+	baseURL   string
+	http      *http.Client
 }
 
 type ClientOptions struct {
@@ -77,12 +80,15 @@ func NewClient(options ...ClientOptions) (*Client, error) {
 	cfg := NewConfiguration()
 	cfg.Servers = ServerConfigurations{{URL: strings.TrimRight(resolved.BaseURL, "/")}}
 	cfg.HTTPClient = resolved.HTTPClient
-	return &Client{
+	client := &Client{
 		API:     NewAPIClient(cfg),
 		apiKey:  resolved.APIKey,
 		baseURL: strings.TrimRight(resolved.BaseURL, "/"),
 		http:    resolved.HTTPClient,
-	}, nil
+	}
+	client.Instances = &InstancesResource{client: client}
+	client.Files = &FilesResource{client: client}
+	return client, nil
 }
 
 func NewMobileClient(options MobileClientOptions) (*MobileClient, error) {
@@ -107,38 +113,20 @@ func NewMobileClient(options MobileClientOptions) (*MobileClient, error) {
 
 // WaitReady polls live mobile control info until the runtime reports online.
 func (c *MobileClient) WaitReady(ctx context.Context) (*GetComputerInfo200Response, error) {
-	for {
-		response, _, err := c.API.MobileAPI.GetMobileInfo(c.authContext(ctx), c.InstanceID).Execute()
-		if err != nil {
-			return nil, err
-		}
-		if response.Data != nil && response.Data.Online {
-			return response, nil
-		}
-		if err := waitContext(ctx, c.pollInterval); err != nil {
-			return nil, err
-		}
-	}
+	return c.Instance(c.InstanceID).Mobile.WaitReady(ctx, WaitOptions{PollInterval: c.pollInterval})
 }
 
 // Run creates a durable task and waits for its terminal snapshot.
 func (c *MobileClient) Run(ctx context.Context, request CreateTaskRequest) (*TaskResponse, error) {
+	ctx, cancel := context.WithTimeout(ctx, 120*time.Second)
+	defer cancel()
 	created, err := c.CreateTask(ctx, c.AgentID, request)
 	if err != nil {
 		return nil, err
 	}
-	for {
-		snapshot, err := c.GetTask(ctx, c.AgentID, created.Data.TaskId)
-		if err != nil {
-			return nil, err
-		}
-		if isTerminalTaskStatus(snapshot.Data.Status) {
-			return snapshot, nil
-		}
-		if err := waitContext(ctx, c.pollInterval); err != nil {
-			return nil, err
-		}
-	}
+	return c.Task(c.AgentID, created.Data.TaskId).Wait(ctx, WaitOptions{
+		PollInterval: c.pollInterval, AllowUnsuccessful: true,
+	})
 }
 
 func (c *MobileClient) Watch(ctx context.Context, taskID string, since int64) (<-chan TaskEvent, <-chan error) {
@@ -174,6 +162,8 @@ func (c *Client) authContext(ctx context.Context) context.Context {
 }
 
 func (c *Client) ListAgents(ctx context.Context) ([]AgentDTO, error) {
+	ctx, cancel := requestContext(ctx)
+	defer cancel()
 	response, _, err := c.API.AgentsAPI.ListAgents(c.authContext(ctx)).Execute()
 	if err != nil {
 		return nil, err
@@ -182,16 +172,31 @@ func (c *Client) ListAgents(ctx context.Context) ([]AgentDTO, error) {
 }
 
 func (c *Client) CreateTask(ctx context.Context, agentID string, request CreateTaskRequest) (*TaskCreatedResponse, error) {
+	if err := validateIDs(agentID); err != nil {
+		return nil, err
+	}
+	ctx, cancel := requestContext(ctx)
+	defer cancel()
 	response, _, err := c.API.TasksAPI.CreateTask(c.authContext(ctx), agentID).CreateTaskRequest(request).Execute()
 	return response, err
 }
 
 func (c *Client) GetTask(ctx context.Context, agentID, taskID string) (*TaskResponse, error) {
+	if err := validateIDs(agentID, taskID); err != nil {
+		return nil, err
+	}
+	ctx, cancel := requestContext(ctx)
+	defer cancel()
 	response, _, err := c.API.TasksAPI.GetTask(c.authContext(ctx), agentID, taskID).Execute()
 	return response, err
 }
 
 func (c *Client) CancelTask(ctx context.Context, agentID, taskID string) (*TaskResponse, error) {
+	if err := validateIDs(agentID, taskID); err != nil {
+		return nil, err
+	}
+	ctx, cancel := requestContext(ctx)
+	defer cancel()
 	response, _, err := c.API.TasksAPI.CancelTask(c.authContext(ctx), agentID, taskID).Execute()
 	return response, err
 }
@@ -203,6 +208,14 @@ func (c *Client) TaskEvents(ctx context.Context, agentID, taskID string, since i
 	go func() {
 		defer close(events)
 		defer close(errors)
+		if err := validateIDs(agentID, taskID); err != nil {
+			errors <- err
+			return
+		}
+		if since < 0 {
+			errors <- fmt.Errorf("since must be nonnegative")
+			return
+		}
 		u := fmt.Sprintf("%s/api/v1/agents/%s/tasks/%s/events", c.baseURL, url.PathEscape(agentID), url.PathEscape(taskID))
 		if since > 0 {
 			u += fmt.Sprintf("?since=%d", since)
@@ -221,11 +234,16 @@ func (c *Client) TaskEvents(ctx context.Context, agentID, taskID string, since i
 		}
 		defer response.Body.Close()
 		if response.StatusCode < 200 || response.StatusCode >= 300 {
-			_, _ = io.Copy(io.Discard, response.Body)
+			_, _ = io.CopyN(io.Discard, response.Body, 4096)
 			errors <- fmt.Errorf("task event stream failed: HTTP %d", response.StatusCode)
 			return
 		}
-		if err := scanTaskEvents(response.Body, events); err != nil {
+		contentType, _, _ := mime.ParseMediaType(response.Header.Get("Content-Type"))
+		if contentType != "text/event-stream" {
+			errors <- fmt.Errorf("task event stream did not return text/event-stream")
+			return
+		}
+		if err := scanTaskEventsContext(ctx, response.Body, events); err != nil {
 			errors <- err
 		}
 	}()
@@ -233,25 +251,52 @@ func (c *Client) TaskEvents(ctx context.Context, agentID, taskID string, since i
 }
 
 func scanTaskEvents(reader io.Reader, events chan<- TaskEvent) error {
+	return scanTaskEventsContext(context.Background(), reader, events)
+}
+
+func scanTaskEventsContext(ctx context.Context, reader io.Reader, events chan<- TaskEvent) error {
 	scanner := bufio.NewScanner(reader)
+	scanner.Buffer(make([]byte, 4096), 4*1024*1024)
 	var event TaskEvent
 	var data []string
-	flush := func() {
+	var frameBytes int
+	flush := func() error {
 		if len(data) == 0 {
-			return
+			event.Event = ""
+			frameBytes = 0
+			return nil
 		}
 		if event.Event == "" {
 			event.Event = "message"
 		}
 		event.Data = json.RawMessage(strings.Join(data, "\n"))
-		events <- event
-		event = TaskEvent{}
+		select {
+		case events <- event:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+		ended := event.Event == "end"
+		event = TaskEvent{ID: event.ID}
 		data = nil
+		frameBytes = 0
+		if ended {
+			return io.EOF
+		}
+		return nil
 	}
 	for scanner.Scan() {
 		line := strings.TrimSuffix(scanner.Text(), "\r")
+		frameBytes += len(line) + 1
+		if frameBytes > 4*1024*1024 {
+			return fmt.Errorf("task event exceeds 4 MiB")
+		}
 		if line == "" {
-			flush()
+			if err := flush(); err != nil {
+				if err == io.EOF {
+					return nil
+				}
+				return err
+			}
 			continue
 		}
 		if strings.HasPrefix(line, ":") {
@@ -263,11 +308,13 @@ func scanTaskEvents(reader io.Reader, events chan<- TaskEvent) error {
 		case "event":
 			event.Event = value
 		case "id":
-			event.ID = value
+			if !strings.ContainsRune(value, '\x00') {
+				event.ID = value
+			}
 		case "data":
 			data = append(data, value)
 		}
 	}
-	flush()
+	// An incomplete EOF frame must not be mistaken for a complete terminal event.
 	return scanner.Err()
 }
