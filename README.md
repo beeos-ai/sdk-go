@@ -1,5 +1,7 @@
 # github.com/beeos-ai/sdk-go
 
+> **Archived — use [`beeos-cloud-sdks`](https://github.com/beeos-ai/beeos-cloud-sdks) instead.** This module targeted the retired BeeOS OpenAPI gateway and is no longer maintained. The Go client now lives in the `go/` module of `beeos-cloud-sdks`. Existing `github.com/beeos-ai/sdk-go` tags stay fetchable but receive no updates.
+
 Go client for the BeeOS OpenAPI contract — served exclusively by
 [`openapi-gateway`](https://github.com/beeos-ai/openagent/tree/main/backend/services/openapi-gateway).
 The spec is [`backend/openapi/beeos-platform-v1.yaml`](https://github.com/beeos-ai/openagent/blob/main/backend/openapi/beeos-platform-v1.yaml);
